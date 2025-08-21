@@ -178,7 +178,7 @@ export const inventoryService = {
     };
     
     return stats;
-  }
+  },
 
   // Get analytics data for dashboard
   async getAnalytics(fiscalYear: number = 2024) {
