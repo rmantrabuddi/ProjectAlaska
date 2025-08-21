@@ -4,6 +4,7 @@ import ContentInput from './components/ContentInput';
 import ContentManagement from './components/ContentManagement';
 import AnalysisDashboard from './components/AnalysisDashboard';
 import StateOverview from './components/StateOverview';
+import InventoryMaster from './components/InventoryMaster';
 import { ContentItem, Department } from './types';
 
 const DEPARTMENTS: Department[] = [
@@ -117,6 +118,7 @@ function App() {
   };
   const tabs = [
     { id: 'overview', label: 'State Overview', icon: MapPin },
+    { id: 'inventory', label: 'Inventory Master', icon: FileText },
     { id: 'input', label: 'Content Input', icon: FileText },
     { id: 'manage', label: 'Content Management', icon: Users },
     { id: 'analyze', label: 'Analysis Dashboard', icon: BarChart3 }
@@ -178,6 +180,9 @@ function App() {
             contentItems={contentItems} 
             onDepartmentSelect={handleDepartmentSelect}
           />
+        )}
+        {activeTab === 'inventory' && (
+          <InventoryMaster />
         )}
         {activeTab === 'input' && (
           <ContentInput 
