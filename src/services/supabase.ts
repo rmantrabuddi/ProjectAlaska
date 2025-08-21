@@ -187,12 +187,10 @@ export const inventoryService = {
       .select(`
         department,
         division,
-        license_type_category,
-        access_channel,
-        processing_days_min,
-        processing_days_max,
-        processing_days_median,
-        applications_processed_${fiscalYear},
+        type,
+        access_mode,
+        processing_time_${fiscalYear},
+        volume_${fiscalYear},
         revenue_${fiscalYear},
         status
       `)
@@ -206,14 +204,14 @@ export const inventoryService = {
   async getTypesCountByDepartment(fiscalYear: number = 2024) {
     const { data, error } = await supabase
       .from('inventory_master')
-      .select('department, license_type_category')
+      .select('department, type')
       .eq('status', 'Active');
     
     if (error) throw error;
     
     const result = data.reduce((acc, item) => {
       const dept = item.department || 'Unknown';
-      const category = item.license_type_category || 'Other';
+      const category = this.categorizeType(item.type || '');
       
       if (!acc[dept]) {
         acc[dept] = { License: 0, Permit: 0, Stamp: 0, Registration: 0, Certificate: 0, Approval: 0, Other: 0 };
@@ -226,19 +224,28 @@ export const inventoryService = {
     return result;
   },
 
+  // Helper method to categorize types
+  categorizeType(type: string): string {
+    const lowerType = type.toLowerCase();
+    if (lowerType.includes('license')) return 'License';
+    if (lowerType.includes('permit')) return 'Permit';
+    if (lowerType.includes('stamp')) return 'Stamp';
+    if (lowerType.includes('registration')) return 'Registration';
+    if (lowerType.includes('certificate')) return 'Certificate';
+    if (lowerType.includes('approval')) return 'Approval';
+    return 'Other';
+  },
   // Get processing time statistics by department
   async getProcessingTimeByDepartment() {
     const { data, error } = await supabase
       .from('inventory_master')
       .select(`
         department,
-        processing_days_min,
-        processing_days_max,
-        processing_days_median,
-        applications_processed_2024
+        processing_time_2024,
+        volume_2024
       `)
       .eq('status', 'Active')
-      .not('processing_days_median', 'is', null);
+      .not('processing_time_2024', 'is', null);
     
     if (error) throw error;
     
@@ -248,26 +255,24 @@ export const inventoryService = {
       if (!acc[dept]) {
         acc[dept] = {
           department: dept,
-          minDays: [],
-          maxDays: [],
-          medianDays: [],
+          processingTimes: [],
           totalApplications: 0
         };
       }
       
-      if (item.processing_days_min) acc[dept].minDays.push(item.processing_days_min);
-      if (item.processing_days_max) acc[dept].maxDays.push(item.processing_days_max);
-      if (item.processing_days_median) acc[dept].medianDays.push(item.processing_days_median);
-      acc[dept].totalApplications += item.applications_processed_2024 || 0;
+      if (item.processing_time_2024) {
+        acc[dept].processingTimes.push(item.processing_time_2024);
+      }
+      acc[dept].totalApplications += parseInt(item.volume_2024 || '0') || 0;
       
       return acc;
     }, {} as Record<string, any>);
     
-    // Calculate averages
+    // Process the data to extract meaningful information
     return Object.values(result).map(dept => ({
       department: dept.department,
-      processingRange: `${Math.min(...dept.minDays)}-${Math.max(...dept.maxDays)} days`,
-      medianProcessingDays: Math.round(dept.medianDays.reduce((a: number, b: number) => a + b, 0) / dept.medianDays.length),
+      processingRange: dept.processingTimes.length > 0 ? dept.processingTimes[0] : 'N/A',
+      medianProcessingDays: 'N/A',
       totalApplications: dept.totalApplications
     }));
   }
