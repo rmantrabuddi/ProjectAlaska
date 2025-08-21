@@ -104,7 +104,7 @@ const ContentInput: React.FC<ContentInputProps> = ({
   const contentTypes = [
     { id: 'interview', label: 'Structured Interview', icon: MessageSquare, color: 'bg-blue-100 text-blue-700' },
     { id: 'document', label: 'Document Upload', icon: FileText, color: 'bg-green-100 text-green-700' },
-    { id: 'note', label: 'Manual Note', icon: StickyNote, color: 'bg-purple-100 text-purple-700' }
+    { id: 'note', label: 'Notes Upload', icon: StickyNote, color: 'bg-purple-100 text-purple-700' }
   ];
 
   return (
