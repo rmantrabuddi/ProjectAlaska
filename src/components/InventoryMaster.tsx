@@ -121,9 +121,14 @@ const InventoryMaster: React.FC = () => {
 
       setUploadProgress(`Uploading ${validRecords.length} records...`);
       
+      // Clear existing data before inserting new records
+      setUploadProgress('Clearing existing data...');
+      await inventoryService.clearAll();
+      
       await inventoryService.bulkInsert(validRecords);
       
       setSuccess(`Successfully uploaded ${validRecords.length} records`);
+      setUploadProgress('Refreshing data...');
       await loadData();
       await loadFilterOptions();
       

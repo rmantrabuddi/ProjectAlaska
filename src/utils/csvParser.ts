@@ -79,8 +79,61 @@ export function mapCSVToInventoryRecord(csvRow: CSVRow): Omit<InventoryMasterRec
     digitized: csvRow['Digitized'] || '',
     workflow_automated_percent: csvRow['% workflow automated'] || '',
     notes: csvRow['Notes'] || '',
-    status: (csvRow['Status'] as 'Active' | 'Inactive' | 'Under Review') || 'Active'
+    status: (csvRow['Status'] as 'Active' | 'Inactive' | 'Under Review') || 'Active',
+    // Parse additional fields for analytics
+    applications_processed_2022: parseInt(csvRow['2022 Volume'] || '0') || undefined,
+    applications_processed_2023: parseInt(csvRow['2023 Volume'] || '0') || undefined,
+    applications_processed_2024: parseInt(csvRow['2024 Volume'] || '0') || undefined,
+    access_channel: mapAccessChannel(csvRow['Access Mode'] || ''),
+    processing_days_min: parseProcessingDays(csvRow['2024 Processing Time'] || '').min,
+    processing_days_max: parseProcessingDays(csvRow['2024 Processing Time'] || '').max,
+    processing_days_median: parseProcessingDays(csvRow['2024 Processing Time'] || '').median,
+    license_type_category: categorizeType(csvRow['Type'] || '')
   };
+}
+
+function mapAccessChannel(accessMode: string): 'Online' | 'Manual' | 'Both' | 'Unknown' {
+  const lower = accessMode.toLowerCase();
+  if (lower.includes('online') && lower.includes('manual')) return 'Both';
+  if (lower.includes('online')) return 'Online';
+  if (lower.includes('manual')) return 'Manual';
+  return 'Unknown';
+}
+
+function parseProcessingDays(processingTime: string): { min?: number; max?: number; median?: number } {
+  const result: { min?: number; max?: number; median?: number } = {};
+  
+  // Extract numbers from processing time text
+  const numbers = processingTime.match(/\d+/g);
+  if (!numbers) return result;
+  
+  if (processingTime.toLowerCase().includes('immediate') || processingTime.toLowerCase().includes('same day')) {
+    result.min = 0;
+    result.max = 0;
+    result.median = 0;
+  } else if (numbers.length === 1) {
+    const days = parseInt(numbers[0]);
+    result.min = days;
+    result.max = days;
+    result.median = days;
+  } else if (numbers.length >= 2) {
+    result.min = parseInt(numbers[0]);
+    result.max = parseInt(numbers[1]);
+    result.median = Math.round((result.min + result.max) / 2);
+  }
+  
+  return result;
+}
+
+function categorizeType(type: string): 'License' | 'Permit' | 'Stamp' | 'Registration' | 'Certificate' | 'Approval' | 'Other' {
+  const lowerType = type.toLowerCase();
+  if (lowerType.includes('license')) return 'License';
+  if (lowerType.includes('permit')) return 'Permit';
+  if (lowerType.includes('stamp')) return 'Stamp';
+  if (lowerType.includes('registration')) return 'Registration';
+  if (lowerType.includes('certificate')) return 'Certificate';
+  if (lowerType.includes('approval')) return 'Approval';
+  return 'Other';
 }
 
 export function validateInventoryRecord(record: Omit<InventoryMasterRecord, 'id' | 'created_at' | 'updated_at'>): string[] {

@@ -15,6 +15,7 @@ const StateOverview: React.FC<StateOverviewProps> = ({ departments, contentItems
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [showDataTable, setShowDataTable] = useState<boolean>(false);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   const [divisionFilter, setDivisionFilter] = useState<string>('');
@@ -106,6 +107,35 @@ const StateOverview: React.FC<StateOverviewProps> = ({ departments, contentItems
 
   const hasAPIKey = checkAPIKey();
 
+  // Load real data from database
+  const loadInventoryData = async () => {
+    try {
+      const data = await inventoryService.getAll();
+      const mappedData: LicensePermitData[] = data.map(item => ({
+        id: item.id,
+        department: item.department,
+        division: item.division,
+        licensePermitTitle: item.license_permit_title,
+        approvingEntity: item.approving_entities || 'Unknown',
+        description: item.description || '',
+        processingTime: item.processing_time_2024 || 'Unknown',
+        fee: item.cost || 'Unknown',
+        renewalPeriod: item.renewal_frequency || 'Unknown',
+        requirements: item.regulations || '',
+        status: item.status,
+        lastUpdated: new Date(item.updated_at)
+      }));
+      setLicenseData(mappedData);
+    } catch (error) {
+      console.error('Failed to load inventory data:', error);
+    }
+  };
+
+  // Load data on component mount and when refresh is triggered
+  useEffect(() => {
+    loadInventoryData();
+  }, [refreshTrigger]);
+
   // Load analytics data
   const loadAnalyticsData = async () => {
     setLoadingAnalytics(true);
@@ -184,10 +214,62 @@ const StateOverview: React.FC<StateOverviewProps> = ({ departments, contentItems
     const file = event.target.files?.[0];
     if (file) {
       setUploadedFile(file);
-      setUploadStatus(`Uploaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+      processFileUpload(file);
+    }
+  };
+
+  const processFileUpload = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setUploadStatus('Error: Please upload a CSV file');
+      return;
+    }
+
+    try {
+      setUploadStatus('Processing file...');
+      const text = await file.text();
+      const csvRows = parseCSV(text);
+      
+      setUploadStatus('Validating data...');
+      const validRecords: Omit<InventoryMasterRecord, 'id' | 'created_at' | 'updated_at'>[] = [];
+      const errors: string[] = [];
+
+      csvRows.forEach((row, index) => {
+        if (!row['Department'] && !row['License Permit Title']) return;
+        
+        const record = mapCSVToInventoryRecord(row);
+        const recordErrors = validateInventoryRecord(record);
+        
+        if (recordErrors.length > 0) {
+          errors.push(`Row ${index + 2}: ${recordErrors.join(', ')}`);
+        } else {
+          validRecords.push(record);
+        }
+      });
+
+      if (errors.length > 0) {
+        setUploadStatus(`Validation errors found in ${errors.length} rows`);
+        return;
+      }
+
+      if (validRecords.length === 0) {
+        setUploadStatus('No valid records found in file');
+        return;
+      }
+
+      setUploadStatus(`Saving ${validRecords.length} records...`);
+      
+      // Clear existing data and insert new records
+      await inventoryService.clearAll();
+      await inventoryService.bulkInsert(validRecords);
+      
+      setUploadStatus(`Successfully uploaded ${validRecords.length} records`);
       setShowDataTable(true);
-      // Here you would typically process the file
-      // For now, we'll just store it in state
+      
+      // Trigger refresh of dashboard data
+      setRefreshTrigger(prev => prev + 1);
+      
+    } catch (error) {
+      setUploadStatus(`Error: ${error instanceof Error ? error.message : 'Upload failed'}`);
     }
   };
 

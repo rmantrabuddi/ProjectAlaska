@@ -141,6 +141,16 @@ export const inventoryService = {
     return data as InventoryMasterRecord[];
   },
 
+  // Clear all records (for fresh upload)
+  async clearAll() {
+    const { error } = await supabase
+      .from('inventory_master')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+    
+    if (error) throw error;
+  },
+
   // Get unique values for filters
   async getUniqueValues(column: 'department' | 'division' | 'approving_entities') {
     const { data, error } = await supabase
