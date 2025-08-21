@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building, Users, FileText, MessageSquare, StickyNote, ChevronRight, HelpCircle, BarChart3, Calendar, Target, Zap, Key, Upload, ExternalLink, Search, Filter, Edit2, Save, X, AlertTriangle, TrendingUp, Clock, PieChart } from 'lucide-react';
 import { Department, ContentItem, LicensePermitData } from '../types';
 import { checkAPIKey } from '../services/openai';
