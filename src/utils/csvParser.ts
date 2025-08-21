@@ -1,4 +1,5 @@
 import { InventoryMasterRecord } from '../services/supabase';
+import * as XLSX from 'xlsx';
 
 export interface CSVRow {
   [key: string]: string;
@@ -26,6 +27,77 @@ export function parseCSV(csvText: string): CSVRow[] {
   }
   
   return rows;
+}
+
+export function parseExcel(file: File): Promise<CSVRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        // Get the first worksheet
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Convert to JSON with header row as keys
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+          header: 1,
+          defval: ''
+        }) as string[][];
+        
+        if (jsonData.length === 0) {
+          reject(new Error('Excel file is empty'));
+          return;
+        }
+        
+        // First row contains headers
+        const headers = jsonData[0].map(h => h?.toString().trim() || '');
+        const rows: CSVRow[] = [];
+        
+        // Process data rows
+        for (let i = 1; i < jsonData.length; i++) {
+          const rowData = jsonData[i];
+          if (!rowData || rowData.length === 0) continue;
+          
+          const row: CSVRow = {};
+          headers.forEach((header, index) => {
+            row[header] = (rowData[index]?.toString() || '').trim();
+          });
+          
+          // Skip empty rows
+          if (Object.values(row).some(value => value)) {
+            rows.push(row);
+          }
+        }
+        
+        resolve(rows);
+      } catch (error) {
+        reject(new Error(`Failed to parse Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
+    };
+    
+    reader.onerror = () => {
+      reject(new Error('Failed to read Excel file'));
+    };
+    
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+export async function parseFile(file: File): Promise<CSVRow[]> {
+  const fileName = file.name.toLowerCase();
+  
+  if (fileName.endsWith('.csv')) {
+    const text = await file.text();
+    return parseCSV(text);
+  } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+    return parseExcel(file);
+  } else {
+    throw new Error('Unsupported file format. Please upload a CSV or Excel file.');
+  }
 }
 
 function parseCSVLine(line: string): string[] {
