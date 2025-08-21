@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Building, Users, FileText, MessageSquare, StickyNote, ChevronRight, HelpCircle, BarChart3, Calendar, Target, Zap, Key, Upload, ExternalLink, Search, Filter, Edit2, Save, X } from 'lucide-react';
+import { Building, Users, FileText, MessageSquare, StickyNote, ChevronRight, HelpCircle, BarChart3, Calendar, Target, Zap, Key, Upload, ExternalLink, Search, Filter, Edit2, Save, X, AlertTriangle, TrendingUp, Clock, PieChart } from 'lucide-react';
 import { Department, ContentItem, LicensePermitData } from '../types';
 import { checkAPIKey } from '../services/openai';
+import { inventoryService } from '../services/supabase';
 
 interface StateOverviewProps {
   departments: Department[];
@@ -21,6 +22,13 @@ const StateOverview: React.FC<StateOverviewProps> = ({ departments, contentItems
   const [entityFilter, setEntityFilter] = useState<string>('');
   const [editingRow, setEditingRow] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<LicensePermitData>>({});
+  
+  // Analytics state
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [typesCountData, setTypesCountData] = useState<any>(null);
+  const [processingTimeData, setProcessingTimeData] = useState<any[]>([]);
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState(2024);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   
   // Mock data - in real app this would come from uploaded file or API
   const [licenseData, setLicenseData] = useState<LicensePermitData[]>([
@@ -97,6 +105,30 @@ const StateOverview: React.FC<StateOverviewProps> = ({ departments, contentItems
   ]);
 
   const hasAPIKey = checkAPIKey();
+
+  // Load analytics data
+  const loadAnalyticsData = async () => {
+    setLoadingAnalytics(true);
+    try {
+      const [analytics, typesCount, processingTime] = await Promise.all([
+        inventoryService.getAnalytics(selectedFiscalYear),
+        inventoryService.getTypesCountByDepartment(selectedFiscalYear),
+        inventoryService.getProcessingTimeByDepartment()
+      ]);
+      
+      setAnalyticsData(analytics);
+      setTypesCountData(typesCount);
+      setProcessingTimeData(processingTime);
+    } catch (error) {
+      console.error('Failed to load analytics data:', error);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
+
+  React.useEffect(() => {
+    loadAnalyticsData();
+  }, [selectedFiscalYear]);
 
   const getDepartmentStats = (departmentId: number) => {
     const items = contentItems.filter(item => item.departmentId === departmentId);
@@ -204,6 +236,49 @@ const StateOverview: React.FC<StateOverviewProps> = ({ departments, contentItems
     setEditData({});
   };
 
+  // Calculate analytics from data
+  const calculateChannelStats = () => {
+    if (!analyticsData) return { Manual: 0, Online: 0, Both: 0, Unknown: 0 };
+    
+    return analyticsData.reduce((acc: any, item: any) => {
+      const channel = item.access_channel || 'Unknown';
+      const applications = item[`applications_processed_${selectedFiscalYear}`] || 0;
+      acc[channel] = (acc[channel] || 0) + applications;
+      return acc;
+    }, { Manual: 0, Online: 0, Both: 0, Unknown: 0 });
+  };
+
+  const calculateDepartmentApplications = () => {
+    if (!analyticsData) return {};
+    
+    return analyticsData.reduce((acc: any, item: any) => {
+      const dept = item.department || 'Unknown';
+      const applications = item[`applications_processed_${selectedFiscalYear}`] || 0;
+      acc[dept] = (acc[dept] || 0) + applications;
+      return acc;
+    }, {});
+  };
+
+  const calculateDepartmentRevenue = () => {
+    if (!analyticsData) return {};
+    
+    return analyticsData.reduce((acc: any, item: any) => {
+      const dept = item.department || 'Unknown';
+      const revenueStr = item[`revenue_${selectedFiscalYear}`] || '0';
+      const revenue = parseFloat(revenueStr.replace(/[^0-9.-]/g, '')) || 0;
+      acc[dept] = (acc[dept] || 0) + revenue;
+      return acc;
+    }, {});
+  };
+
+  const channelStats = calculateChannelStats();
+  const departmentApplications = calculateDepartmentApplications();
+  const departmentRevenue = calculateDepartmentRevenue();
+  
+  const totalApplications = Object.values(departmentApplications).reduce((sum: number, val: any) => sum + val, 0);
+  const totalRevenue = Object.values(departmentRevenue).reduce((sum: number, val: any) => sum + val, 0);
+  const totalChannelApplications = Object.values(channelStats).reduce((sum: number, val: any) => sum + val, 0);
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -232,6 +307,321 @@ const StateOverview: React.FC<StateOverviewProps> = ({ departments, contentItems
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Fiscal Year Selector */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-800">Analytics Dashboard</h3>
+          <div className="flex items-center space-x-4">
+            <label className="text-sm font-medium text-slate-700">Fiscal Year:</label>
+            <select
+              value={selectedFiscalYear}
+              onChange={(e) => setSelectedFiscalYear(parseInt(e.target.value))}
+              className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+            >
+              <option value={2024}>2024</option>
+              <option value={2023}>2023</option>
+              <option value={2022}>2022</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* New Analytics Visuals */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Bar Chart - Count of Types per Department */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-slate-800">Types per Department</h3>
+            <BarChart3 className="w-5 h-5 text-blue-600" />
+          </div>
+          {loadingAnalytics ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full"></div>
+            </div>
+          ) : typesCountData ? (
+            <div className="space-y-4">
+              {Object.entries(typesCountData).map(([dept, counts]: [string, any]) => {
+                const total = Object.values(counts).reduce((sum: number, val: any) => sum + val, 0);
+                return (
+                  <div key={dept} className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-slate-700">{dept.split(' – ')[0]}</span>
+                      <span className="text-sm text-slate-600">Total: {total}</span>
+                    </div>
+                    <div className="flex h-6 bg-slate-200 rounded-full overflow-hidden">
+                      {Object.entries(counts).map(([type, count]: [string, any], index) => {
+                        const percentage = (count / total) * 100;
+                        const colors = ['bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-red-500', 'bg-indigo-500', 'bg-pink-500'];
+                        return count > 0 ? (
+                          <div
+                            key={type}
+                            className={`${colors[index % colors.length]} flex items-center justify-center text-xs text-white font-medium`}
+                            style={{ width: `${percentage}%` }}
+                            title={`${type}: ${count}`}
+                          >
+                            {percentage > 10 ? count : ''}
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {Object.entries(counts).map(([type, count]: [string, any], index) => {
+                        const colors = ['text-blue-600', 'text-green-600', 'text-yellow-600', 'text-purple-600', 'text-red-600', 'text-indigo-600', 'text-pink-600'];
+                        return count > 0 ? (
+                          <span key={type} className={`${colors[index % colors.length]} font-medium`}>
+                            {type}: {count}
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-64 text-slate-500">
+              No data available
+            </div>
+          )}
+        </div>
+
+        {/* Pie Chart - Manual vs Online */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-slate-800">Application Channels</h3>
+            <PieChart className="w-5 h-5 text-green-600" />
+          </div>
+          {loadingAnalytics ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin w-8 h-8 border-4 border-green-200 border-t-green-600 rounded-full"></div>
+            </div>
+          ) : totalChannelApplications > 0 ? (
+            <div className="space-y-4">
+              <div className="relative w-48 h-48 mx-auto">
+                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                  {Object.entries(channelStats).map(([channel, count]: [string, any], index) => {
+                    const percentage = (count / totalChannelApplications) * 100;
+                    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
+                    const strokeDasharray = `${percentage} ${100 - percentage}`;
+                    const strokeDashoffset = -Object.entries(channelStats)
+                      .slice(0, index)
+                      .reduce((sum, [, c]: [string, any]) => sum + (c / totalChannelApplications) * 100, 0);
+                    
+                    return count > 0 ? (
+                      <circle
+                        key={channel}
+                        cx="50"
+                        cy="50"
+                        r="15.915"
+                        fill="transparent"
+                        stroke={colors[index]}
+                        strokeWidth="8"
+                        strokeDasharray={strokeDasharray}
+                        strokeDashoffset={strokeDashoffset}
+                        className="transition-all duration-300"
+                      />
+                    ) : null;
+                  })}
+                </svg>
+              </div>
+              <div className="space-y-2">
+                {Object.entries(channelStats).map(([channel, count]: [string, any], index) => {
+                  const percentage = totalChannelApplications > 0 ? ((count / totalChannelApplications) * 100).toFixed(1) : '0';
+                  const colors = ['bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500'];
+                  return count > 0 ? (
+                    <div key={channel} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-3 h-3 rounded-full ${colors[index]}`}></div>
+                        <span className="text-sm font-medium text-slate-700">
+                          {channel}
+                          {channel === 'Unknown' && (
+                            <AlertTriangle className="w-3 h-3 inline ml-1 text-yellow-500" title="Some records have missing channel data" />
+                          )}
+                        </span>
+                      </div>
+                      <span className="text-sm text-slate-600">{count.toLocaleString()} ({percentage}%)</span>
+                    </div>
+                  ) : null;
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-64 text-slate-500">
+              No application data available
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Processing Time Table and Department Pie Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Processing Time Table */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-slate-800">Processing Times</h3>
+            <Clock className="w-5 h-5 text-purple-600" />
+          </div>
+          {loadingAnalytics ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full"></div>
+            </div>
+          ) : processingTimeData.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left py-2 font-semibold text-slate-700">Department</th>
+                    <th className="text-left py-2 font-semibold text-slate-700">Range</th>
+                    <th className="text-left py-2 font-semibold text-slate-700">Median</th>
+                    <th className="text-left py-2 font-semibold text-slate-700">Apps</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {processingTimeData.map((dept, index) => (
+                    <tr key={index} className="border-b border-slate-100">
+                      <td className="py-2 text-slate-600 text-xs">{dept.department.split(' – ')[0]}</td>
+                      <td className="py-2 text-slate-600 text-xs">{dept.processingRange}</td>
+                      <td className="py-2 text-slate-600 text-xs">{dept.medianProcessingDays}d</td>
+                      <td className="py-2 text-slate-600 text-xs">{dept.totalApplications.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-64 text-slate-500">
+              No processing time data available
+            </div>
+          )}
+        </div>
+
+        {/* Applications by Department Pie Chart */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-slate-800">Applications by Dept</h3>
+            <TrendingUp className="w-5 h-5 text-orange-600" />
+          </div>
+          {loadingAnalytics ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin w-8 h-8 border-4 border-orange-200 border-t-orange-600 rounded-full"></div>
+            </div>
+          ) : totalApplications > 0 ? (
+            <div className="space-y-4">
+              <div className="relative w-32 h-32 mx-auto">
+                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                  {Object.entries(departmentApplications).map(([dept, count]: [string, any], index) => {
+                    const percentage = (count / totalApplications) * 100;
+                    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+                    const strokeDasharray = `${percentage} ${100 - percentage}`;
+                    const strokeDashoffset = -Object.entries(departmentApplications)
+                      .slice(0, index)
+                      .reduce((sum, [, c]: [string, any]) => sum + (c / totalApplications) * 100, 0);
+                    
+                    return count > 0 ? (
+                      <circle
+                        key={dept}
+                        cx="50"
+                        cy="50"
+                        r="15.915"
+                        fill="transparent"
+                        stroke={colors[index % colors.length]}
+                        strokeWidth="6"
+                        strokeDasharray={strokeDasharray}
+                        strokeDashoffset={strokeDashoffset}
+                      />
+                    ) : null;
+                  })}
+                </svg>
+              </div>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {Object.entries(departmentApplications)
+                  .filter(([, count]) => count > 0)
+                  .map(([dept, count]: [string, any], index) => {
+                    const percentage = ((count / totalApplications) * 100).toFixed(1);
+                    const colors = ['bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500', 'bg-purple-500'];
+                    return (
+                      <div key={dept} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-1">
+                          <div className={`w-2 h-2 rounded-full ${colors[index % colors.length]}`}></div>
+                          <span className="text-slate-700 truncate">{dept.split(' – ')[0]}</span>
+                        </div>
+                        <span className="text-slate-600">{percentage}%</span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-64 text-slate-500">
+              No application data available
+            </div>
+          )}
+        </div>
+
+        {/* Revenue by Department Pie Chart */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-slate-800">Revenue by Dept</h3>
+            <Target className="w-5 h-5 text-green-600" />
+          </div>
+          {loadingAnalytics ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin w-8 h-8 border-4 border-green-200 border-t-green-600 rounded-full"></div>
+            </div>
+          ) : totalRevenue > 0 ? (
+            <div className="space-y-4">
+              <div className="relative w-32 h-32 mx-auto">
+                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                  {Object.entries(departmentRevenue).map(([dept, revenue]: [string, any], index) => {
+                    const percentage = (revenue / totalRevenue) * 100;
+                    const colors = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'];
+                    const strokeDasharray = `${percentage} ${100 - percentage}`;
+                    const strokeDashoffset = -Object.entries(departmentRevenue)
+                      .slice(0, index)
+                      .reduce((sum, [, r]: [string, any]) => sum + (r / totalRevenue) * 100, 0);
+                    
+                    return revenue > 0 ? (
+                      <circle
+                        key={dept}
+                        cx="50"
+                        cy="50"
+                        r="15.915"
+                        fill="transparent"
+                        stroke={colors[index % colors.length]}
+                        strokeWidth="6"
+                        strokeDasharray={strokeDasharray}
+                        strokeDashoffset={strokeDashoffset}
+                      />
+                    ) : null;
+                  })}
+                </svg>
+              </div>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {Object.entries(departmentRevenue)
+                  .filter(([, revenue]) => revenue > 0)
+                  .map(([dept, revenue]: [string, any], index) => {
+                    const percentage = ((revenue / totalRevenue) * 100).toFixed(1);
+                    const colors = ['bg-green-500', 'bg-blue-500', 'bg-yellow-500', 'bg-red-500', 'bg-purple-500'];
+                    return (
+                      <div key={dept} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-1">
+                          <div className={`w-2 h-2 rounded-full ${colors[index % colors.length]}`}></div>
+                          <span className="text-slate-700 truncate">{dept.split(' – ')[0]}</span>
+                        </div>
+                        <span className="text-slate-600">${(revenue / 1000).toFixed(0)}K ({percentage}%)</span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-64 text-slate-500">
+              No revenue data available
+            </div>
+          )}
         </div>
       </div>
 

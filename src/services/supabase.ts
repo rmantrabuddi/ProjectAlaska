@@ -39,6 +39,14 @@ export interface InventoryMasterRecord {
   workflow_automated_percent?: string;
   notes?: string;
   status: 'Active' | 'Inactive' | 'Under Review';
+  applications_processed_2022?: number;
+  applications_processed_2023?: number;
+  applications_processed_2024?: number;
+  access_channel?: 'Online' | 'Manual' | 'Both' | 'Unknown';
+  processing_days_min?: number;
+  processing_days_max?: number;
+  processing_days_median?: number;
+  license_type_category?: 'License' | 'Permit' | 'Stamp' | 'Registration' | 'Certificate' | 'Approval' | 'Other';
   created_at: string;
   updated_at: string;
 }
@@ -170,5 +178,97 @@ export const inventoryService = {
     };
     
     return stats;
+  }
+
+  // Get analytics data for dashboard
+  async getAnalytics(fiscalYear: number = 2024) {
+    const { data, error } = await supabase
+      .from('inventory_master')
+      .select(`
+        department,
+        division,
+        license_type_category,
+        access_channel,
+        processing_days_min,
+        processing_days_max,
+        processing_days_median,
+        applications_processed_${fiscalYear},
+        revenue_${fiscalYear},
+        status
+      `)
+      .eq('status', 'Active');
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Get types count by department
+  async getTypesCountByDepartment(fiscalYear: number = 2024) {
+    const { data, error } = await supabase
+      .from('inventory_master')
+      .select('department, license_type_category')
+      .eq('status', 'Active');
+    
+    if (error) throw error;
+    
+    const result = data.reduce((acc, item) => {
+      const dept = item.department || 'Unknown';
+      const category = item.license_type_category || 'Other';
+      
+      if (!acc[dept]) {
+        acc[dept] = { License: 0, Permit: 0, Stamp: 0, Registration: 0, Certificate: 0, Approval: 0, Other: 0 };
+      }
+      acc[dept][category] = (acc[dept][category] || 0) + 1;
+      
+      return acc;
+    }, {} as Record<string, Record<string, number>>);
+    
+    return result;
+  },
+
+  // Get processing time statistics by department
+  async getProcessingTimeByDepartment() {
+    const { data, error } = await supabase
+      .from('inventory_master')
+      .select(`
+        department,
+        processing_days_min,
+        processing_days_max,
+        processing_days_median,
+        applications_processed_2024
+      `)
+      .eq('status', 'Active')
+      .not('processing_days_median', 'is', null);
+    
+    if (error) throw error;
+    
+    const result = data.reduce((acc, item) => {
+      const dept = item.department || 'Unknown';
+      
+      if (!acc[dept]) {
+        acc[dept] = {
+          department: dept,
+          minDays: [],
+          maxDays: [],
+          medianDays: [],
+          totalApplications: 0
+        };
+      }
+      
+      if (item.processing_days_min) acc[dept].minDays.push(item.processing_days_min);
+      if (item.processing_days_max) acc[dept].maxDays.push(item.processing_days_max);
+      if (item.processing_days_median) acc[dept].medianDays.push(item.processing_days_median);
+      acc[dept].totalApplications += item.applications_processed_2024 || 0;
+      
+      return acc;
+    }, {} as Record<string, any>);
+    
+    // Calculate averages
+    return Object.values(result).map(dept => ({
+      department: dept.department,
+      processingRange: `${Math.min(...dept.minDays)}-${Math.max(...dept.maxDays)} days`,
+      medianProcessingDays: Math.round(dept.medianDays.reduce((a: number, b: number) => a + b, 0) / dept.medianDays.length),
+      totalApplications: dept.totalApplications
+    }));
   }
 };
