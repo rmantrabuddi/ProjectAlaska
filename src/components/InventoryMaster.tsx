@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Search, Filter, Edit2, Save, X, Plus, Download, AlertCircle, CheckCircle, Database } from 'lucide-react';
 import { inventoryService, InventoryMasterRecord } from '../services/supabase';
-import { parseCSV, mapCSVToInventoryRecord, validateInventoryRecord } from '../utils/csvParser';
+import { parseFile, mapCSVToInventoryRecord, validateInventoryRecord } from '../utils/csvParser';
 
 const InventoryMaster: React.FC = () => {
   const [records, setRecords] = useState<InventoryMasterRecord[]>([]);
@@ -74,8 +74,9 @@ const InventoryMaster: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      setError('Please upload a CSV file');
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.csv') && !fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+      setError('Please upload a CSV or Excel file (.csv, .xlsx, .xls)');
       return;
     }
 
@@ -84,10 +85,9 @@ const InventoryMaster: React.FC = () => {
     setError(null);
 
     try {
-      const text = await file.text();
-      setUploadProgress('Parsing CSV data...');
+      setUploadProgress('Parsing file data...');
       
-      const csvRows = parseCSV(text);
+      const csvRows = await parseFile(file);
       const validRecords: Omit<InventoryMasterRecord, 'id' | 'created_at' | 'updated_at'>[] = [];
       const errors: string[] = [];
 
@@ -108,13 +108,13 @@ const InventoryMaster: React.FC = () => {
       });
 
       if (errors.length > 0) {
-        setError(`Validation errors:\n${errors.slice(0, 10).join('\n')}${errors.length > 10 ? `\n... and ${errors.length - 10} more errors` : ''}`);
+        setError(`Validation errors found:\n${errors.slice(0, 10).join('\n')}${errors.length > 10 ? `\n... and ${errors.length - 10} more errors` : ''}`);
         setUploading(false);
         return;
       }
 
       if (validRecords.length === 0) {
-        setError('No valid records found in the CSV file');
+        setError('No valid records found in the file');
         setUploading(false);
         return;
       }
@@ -274,7 +274,7 @@ const InventoryMaster: React.FC = () => {
                 </p>
                 <input
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   onChange={handleFileUpload}
                   disabled={uploading}
                   className="hidden"
@@ -290,6 +290,9 @@ const InventoryMaster: React.FC = () => {
                 >
                   {uploading ? 'Uploading...' : 'Choose File'}
                 </label>
+                <p className="text-xs text-slate-500">
+                  Supported formats: CSV (.csv), Excel (.xlsx, .xls)
+                </p>
               </div>
             </div>
             {uploadProgress && (
