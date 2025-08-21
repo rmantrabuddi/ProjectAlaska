@@ -68,12 +68,6 @@ const InventoryMaster: React.FC = () => {
     }, 300);
 
     return () => clearTimeout(debounceTimer);
-  }, [searchTerm, departmentFilter, divisionFilter, statusFilter]);
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
     setUploading(true);
     setUploadProgress('Reading file...');
     setError(null);
