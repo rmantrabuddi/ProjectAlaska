@@ -74,11 +74,6 @@ const InventoryMaster: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setUploading(true);
-    setUploadProgress('Reading file...');
-    setError(null);
-
-    try {
       setUploadProgress('Parsing file data...');
       
       const csvRows = await parseFile(file);
@@ -87,8 +82,7 @@ const InventoryMaster: React.FC = () => {
 
       setUploadProgress('Validating records...');
       
-      csvRows.forEach((row, index) => {
-        // Skip empty rows
+      const csvRows = await parseFile(file);
         if (!row['Department'] && !row['License Permit Title']) return;
         
         const record = mapCSVToInventoryRecord(row);
