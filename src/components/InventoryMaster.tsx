@@ -74,12 +74,6 @@ const InventoryMaster: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const fileName = file.name.toLowerCase();
-    if (!fileName.endsWith('.csv') && !fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
-      setError('Please upload a CSV or Excel file (.csv, .xlsx, .xls)');
-      return;
-    }
-
     setUploading(true);
     setUploadProgress('Reading file...');
     setError(null);
