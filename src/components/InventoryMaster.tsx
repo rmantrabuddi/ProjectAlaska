@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Search, Filter, Edit2, Save, X, Plus, Download, AlertCircle, CheckCircle, Database } from 'lucide-react';
 import { inventoryService, InventoryMasterRecord } from '../services/supabase';
-import { parseFile, mapCSVToInventoryRecord, validateInventoryRecord } from '../utils/csvParser';
+import { parseFile, mapCSVToInventoryRecord, validateInventoryRecord, CSVRow } from '../utils/csvParser';
 
 const InventoryMaster: React.FC = () => {
   const [records, setRecords] = useState<InventoryMasterRecord[]>([]);
@@ -78,8 +78,7 @@ const InventoryMaster: React.FC = () => {
       setUploading(true);
       setUploadProgress('Parsing file data...');
       
-      const csvRows = await parseFile(file);
-      const validRecords: InventoryMasterRecord[] = [];
+      const csvRows: CSVRow[] = await parseFile(file);
       const errors: string[] = [];
 
       csvRows.forEach((row, index) => {
