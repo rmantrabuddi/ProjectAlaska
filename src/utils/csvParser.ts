@@ -6,17 +6,13 @@ export type CSVRow = Record<string, any>;
 
 export async function parseFile(file: File): Promise<CSVRow[]> {
   const ext = file.name.split('.').pop()?.toLowerCase();
-
-  if (ext === 'csv') {
-    return parseCSV(file);
-  }
-
+  
+  // Accept any file type - try Excel first, then CSV
   if (ext === 'xlsx' || ext === 'xls') {
     return parseExcel(file);
+  } else {
+    return parseCSV(file);
   }
-
-  // Try CSV parsing as fallback
-  return parseCSV(file);
 }
 
 async function parseCSV(file: File): Promise<CSVRow[]> {
