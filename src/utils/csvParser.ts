@@ -17,12 +17,8 @@ export async function parseFile(file: File): Promise<CSVRow[]> {
     return parseExcel(file);
   }
 
-  // Fallback: try MIME type when extension isn't reliable
-  const mime = file.type?.toLowerCase() || '';
-  if (mime.includes('csv')) return parseCSV(file);
-  if (mime.includes('spreadsheet') || mime.includes('excel')) return parseExcel(file);
-
-  throw new Error('Unsupported file type. Please upload a CSV or Excel file.');
+  // Default to CSV parsing for unknown extensions
+  return parseCSV(file);
 }
 
 async function parseCSV(file: File): Promise<CSVRow[]> {
