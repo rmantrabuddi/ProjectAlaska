@@ -74,11 +74,15 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
   const file = event.target.files?.[0];
   if (!file) return;
 
+  try {
+    setUploading(true);
+    setUploadProgress('Parsing file...');
+
+    const csvRows: CSVRow[] = await parseFile(file);
     const errors: string[] = [];
     const validRecords: InventoryMasterRecord[] = []; // <-- ADDED
 
     csvRows.forEach((row, index) => {
-    const csvRows: CSVRow[] = await parseFile(file);
       const record = mapCSVToInventoryRecord(row);
       const recordErrors = validateInventoryRecord(record);
 
