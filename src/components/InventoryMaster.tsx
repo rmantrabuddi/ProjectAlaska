@@ -74,19 +74,11 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
   const file = event.target.files?.[0];
   if (!file) return;
 
-  try {
-    setUploading(true);
-    setUploadProgress('Parsing file data...');
-
-    const csvRows: CSVRow[] = await parseFile(file);
-
     const errors: string[] = [];
     const validRecords: InventoryMasterRecord[] = []; // <-- ADDED
 
     csvRows.forEach((row, index) => {
-      // Skip blank lines
-      if (!row['Department'] && !row['License Permit Title'] && !row['License/Permit Title']) return;
-
+    const csvRows: CSVRow[] = await parseFile(file);
       const record = mapCSVToInventoryRecord(row);
       const recordErrors = validateInventoryRecord(record);
 
