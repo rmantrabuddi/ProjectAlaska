@@ -80,7 +80,7 @@ const InventoryMaster: React.FC = () => {
 
       const csvRows: CSVRow[] = await parseFile(file);
       const errors: string[] = [];
-      const validRecords: InventoryMasterRecord[] = []; // <-- ADDED
+      const validRecords: Omit<InventoryMasterRecord, 'id' | 'created_at' | 'updated_at'>[] = [];
 
       csvRows.forEach((row, index) => {
         const record = mapCSVToInventoryRecord(row);
@@ -259,7 +259,7 @@ const InventoryMaster: React.FC = () => {
               <div className="space-y-2">
                 <p className="text-slate-600 font-medium">Upload Inventory File</p>
                 <p className="text-sm text-slate-500">
-                  Upload a CSV file matching the Alaska inventory template format
+                  Upload a CSV or Excel file matching the Alaska inventory template format
                 </p>
                 <input
                   type="file"
