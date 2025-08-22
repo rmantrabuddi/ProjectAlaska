@@ -70,62 +70,67 @@ const InventoryMaster: React.FC = () => {
     return () => clearTimeout(debounceTimer);
   }, [searchTerm, departmentFilter, divisionFilter, statusFilter]);
 
-  try {
-    setUploading(true);
-    setUploadProgress('Parsing file...');
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    const csvRows: CSVRow[] = await parseFile(file);
-    const errors: string[] = [];
-    const validRecords: InventoryMasterRecord[] = []; // <-- ADDED
+    try {
+      setUploading(true);
+      setUploadProgress('Parsing file...');
 
-    csvRows.forEach((row, index) => {
-      const record = mapCSVToInventoryRecord(row);
-      const recordErrors = validateInventoryRecord(record);
+      const csvRows: CSVRow[] = await parseFile(file);
+      const errors: string[] = [];
+      const validRecords: InventoryMasterRecord[] = []; // <-- ADDED
 
-      if (recordErrors.length > 0) {
-        errors.push(`Row ${index + 2}: ${recordErrors.join(', ')}`);
-      } else {
-        validRecords.push(record);
+      csvRows.forEach((row, index) => {
+        const record = mapCSVToInventoryRecord(row);
+        const recordErrors = validateInventoryRecord(record);
+
+        if (recordErrors.length > 0) {
+          errors.push(`Row ${index + 2}: ${recordErrors.join(', ')}`);
+        } else {
+          validRecords.push(record);
+        }
+      });
+
+      if (errors.length > 0) {
+        setError(
+          `Validation errors found:\n${errors.slice(0, 10).join('\n')}${
+            errors.length > 10 ? `\n... and ${errors.length - 10} more errors` : ''
+          }`
+        );
+        setUploading(false);
+        return;
       }
-    });
 
-    if (errors.length > 0) {
-      setError(
-        `Validation errors found:\n${errors.slice(0, 10).join('\n')}${
-          errors.length > 10 ? `\n... and ${errors.length - 10} more errors` : ''
-        }`
-      );
+      if (validRecords.length === 0) {
+        setError('No valid records found in the file');
+        setUploading(false);
+        return;
+      }
+
+      setUploadProgress(`Uploading ${validRecords.length} records...`);
+
+      // Clear existing data before inserting new records
+      setUploadProgress('Clearing existing data...');
+      await inventoryService.clearAll();
+
+      await inventoryService.bulkInsert(validRecords);
+
+      setSuccess(`Successfully uploaded ${validRecords.length} records`);
+      setUploadProgress('Refreshing data...');
+      await loadData();
+      await loadFilterOptions();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload file');
+    } finally {
       setUploading(false);
-      return;
+      setUploadProgress('');
+      // Reset input
+      event.target.value = '';
     }
+  };
 
-    if (validRecords.length === 0) {
-      setError('No valid records found in the file');
-      setUploading(false);
-      return;
-    }
-
-    setUploadProgress(`Uploading ${validRecords.length} records...`);
-
-    // Clear existing data before inserting new records
-    setUploadProgress('Clearing existing data...');
-    await inventoryService.clearAll();
-
-    await inventoryService.bulkInsert(validRecords);
-
-    setSuccess(`Successfully uploaded ${validRecords.length} records`);
-    setUploadProgress('Refreshing data...');
-    await loadData();
-    await loadFilterOptions();
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'Failed to upload file');
-  } finally {
-    setUploading(false);
-    setUploadProgress('');
-    // Reset input
-    event.target.value = '';
-  }
-};
   const handleEdit = (record: InventoryMasterRecord) => {
     setEditingRow(record.id);
     setEditData(record);
