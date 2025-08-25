@@ -4,10 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"tsx watch server/index.ts\"",
+    "dev": "concurrently --kill-others --prefix \"[{name}]\" --names \"vite,server\" \"vite\" \"npm run server\"",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "tsx watch server/index.ts",
+    "start": "npm run dev"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.56.0",

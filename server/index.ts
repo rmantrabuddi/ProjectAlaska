@@ -231,4 +231,18 @@ app.post("/api/ai/chat-completion", async (req, res) => {
 
 // ----- Start -----------------------------------------------------------------
 const port = Number(process.env.PORT || 8787);
-app.listen(port, () => console.log(`API listening on http://localhost:${port}`));
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 API server listening on http://localhost:${port}`);
+  console.log(`📊 Health check: http://localhost:${port}/api/health`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully');
+  process.exit(0);
+});
