@@ -1,46 +1,40 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-// Helper function to check if Supabase is configured
-export const isSupabaseConfigured = (): boolean => {
-  return !!(
-    supabaseUrl && 
-    supabaseAnonKey && 
-    supabaseUrl.startsWith('https://') && 
+export const isSupabaseConfigured = (): boolean =>
+  !!(
+    supabaseUrl &&
+    supabaseAnonKey &&
+    supabaseUrl.startsWith("https://") &&
     supabaseAnonKey.length > 20
   );
-};
 
-// Only create client if both URL and key are properly configured
-let supabase: any = null;
+// Reuse the client across Vite HMR reloads
+const globalForSupabase = globalThis as unknown as { __supabase?: SupabaseClient };
 
-if (isSupabaseConfigured()) {
-  try {
-    supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-      auth: {
-        persistSession: false
-      },
-      global: {
-        fetch: (url, options = {}) => {
-          return fetch(url, {
-            ...options,
-            // Disable SSL verification for development
-            agent: false
-          });
-        }
-      }
-    });
-  } catch (error) {
-    console.warn('Failed to initialize Supabase client:', error);
-    supabase = null;
-  }
+if (isSupabaseConfigured() && !globalForSupabase.__supabase) {
+  globalForSupabase.__supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
+    auth: {
+      // ✅ persist the anon session across reloads
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  });
 }
 
-export { supabase };
+// Export as possibly undefined; callers should guard or call ensureAuth() first
+export const supabase: SupabaseClient | undefined = globalForSupabase.__supabase;
 
-// Database types
+export async function ensureAuth() {
+  if (!isSupabaseConfigured() || !supabase) return;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    const { error } = await supabase.auth.signInAnonymously();
+    if (error) console.error("Anonymous sign-in failed:", error);
+  }
+}// Database types
 export interface Department {
   id: string;
   name: string;
@@ -58,6 +52,10 @@ export interface InventoryData {
   division: string;
   license_permit_type: string;
   description: string;
+  access_mode: string;
+  regulations: string;
+  user_type: string;
+  cost: string;
   revenue_2022: number;
   revenue_2023: number;
   revenue_2024: number;

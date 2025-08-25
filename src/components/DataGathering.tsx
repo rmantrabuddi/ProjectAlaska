@@ -1,3 +1,5 @@
+import { supabase, ensureAuth } from "../lib/supabase";
+ensureAuth();
 import React, { useState } from 'react';
 import { Upload, Download, Filter, Search, Edit3, Save, X, Brain } from 'lucide-react';
 import Papa from 'papaparse';
@@ -225,6 +227,10 @@ const DataGathering: React.FC = () => {
         division: row.division.toString().trim(),
         license_permit_type: row.license_permit_type.toString().trim(),
         description: row.description?.toString().trim() || '',
+        access_mode: row.access_mode?.toString().trim() || '',
+        regulations: row.regulations?.toString().trim() || '',
+        user_type: row.user_type?.toString().trim() || '',
+        cost: row.cost?.toString().trim() || '',
         revenue_2022: parseFloat(row.revenue_2022?.toString().replace(/[,$]/g, '') || '0') || 0,
         revenue_2023: parseFloat(row.revenue_2023?.toString().replace(/[,$]/g, '') || '0') || 0,
         revenue_2024: parseFloat(row.revenue_2024?.toString().replace(/[,$]/g, '') || '0') || 0,
@@ -330,10 +336,10 @@ const DataGathering: React.FC = () => {
             <div className="mt-4 text-xs text-gray-400 max-w-md mx-auto">
               <p className="font-medium mb-2">Expected columns:</p>
               <div className="text-left space-y-1">
-                <p>• department_name, division, license_permit_type</p>
-                <p>• description, revenue_2022/2023/2024</p>
-                <p>• processing_time_2022/2023/2024</p>
-                <p>• volume_2022/2023/2024</p>
+                <p>• <strong>Required:</strong> department_name, division, license_permit_type</p>
+                <p>• <strong>Optional:</strong> description, access_mode, regulations, user_type, cost</p>
+                <p>• <strong>Financial:</strong> revenue_2022/2023/2024</p>
+                <p>• <strong>Performance:</strong> processing_time_2022/2023/2024, volume_2022/2023/2024</p>
               </div>
             </div>
             <input
@@ -432,54 +438,132 @@ const DataGathering: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Division</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">License Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue 2024</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Processing Time</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Processed 2024</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Division</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">License Type</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Access Mode</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Type</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue 2024</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Processing Time 2024</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Volume 2024</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredData.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                     {item.department_name.replace('Department of ', '')}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.division}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.license_permit_type}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {editingId === item.id ? (
+                      <input
+                        type="text"
+                        value={editingData?.division || ''}
+                        onChange={(e) => setEditingData(prev => prev ? { ...prev, division: e.target.value } : null)}
+                        className="w-full px-2 py-1 border rounded text-xs"
+                      />
+                    ) : (
+                      item.division
+                    )}
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-900 max-w-xs">
+                    {editingId === item.id ? (
+                      <input
+                        type="text"
+                        value={editingData?.license_permit_type || ''}
+                        onChange={(e) => setEditingData(prev => prev ? { ...prev, license_permit_type: e.target.value } : null)}
+                        className="w-full px-2 py-1 border rounded text-xs"
+                      />
+                    ) : (
+                      <div className="truncate" title={item.license_permit_type}>
+                        {item.license_permit_type}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-900 max-w-xs">
+                    {editingId === item.id ? (
+                      <textarea
+                        value={editingData?.description || ''}
+                        onChange={(e) => setEditingData(prev => prev ? { ...prev, description: e.target.value } : null)}
+                        className="w-full px-2 py-1 border rounded text-xs"
+                        rows={2}
+                      />
+                    ) : (
+                      <div className="truncate" title={item.description}>
+                        {item.description || 'N/A'}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {editingId === item.id ? (
+                      <input
+                        type="text"
+                        value={editingData?.access_mode || ''}
+                        onChange={(e) => setEditingData(prev => prev ? { ...prev, access_mode: e.target.value } : null)}
+                        className="w-full px-2 py-1 border rounded text-xs"
+                      />
+                    ) : (
+                      item.access_mode || 'N/A'
+                    )}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {editingId === item.id ? (
+                      <input
+                        type="text"
+                        value={editingData?.user_type || ''}
+                        onChange={(e) => setEditingData(prev => prev ? { ...prev, user_type: e.target.value } : null)}
+                        className="w-full px-2 py-1 border rounded text-xs"
+                      />
+                    ) : (
+                      item.user_type || 'N/A'
+                    )}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {editingId === item.id ? (
+                      <input
+                        type="text"
+                        value={editingData?.cost || ''}
+                        onChange={(e) => setEditingData(prev => prev ? { ...prev, cost: e.target.value } : null)}
+                        className="w-full px-2 py-1 border rounded text-xs"
+                      />
+                    ) : (
+                      item.cost || 'N/A'
+                    )}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                     {editingId === item.id ? (
                       <input
                         type="number"
                         value={editingData?.revenue_2024 || 0}
                         onChange={(e) => setEditingData(prev => prev ? { ...prev, revenue_2024: Number(e.target.value) } : null)}
-                        className="w-full px-2 py-1 border rounded"
+                        className="w-full px-2 py-1 border rounded text-xs"
                       />
                     ) : (
                       `$${item.revenue_2024.toLocaleString()}`
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                     {editingId === item.id ? (
                       <input
                         type="number"
                         value={editingData?.processing_time_2024 || 0}
                         onChange={(e) => setEditingData(prev => prev ? { ...prev, processing_time_2024: Number(e.target.value) } : null)}
-                        className="w-full px-2 py-1 border rounded"
+                        className="w-full px-2 py-1 border rounded text-xs"
                       />
                     ) : (
                       `${item.processing_time_2024} days`
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                     {editingId === item.id ? (
                       <input
                         type="number"
                         value={editingData?.volume_2024 || 0}
                         onChange={(e) => setEditingData(prev => prev ? { ...prev, volume_2024: Number(e.target.value) } : null)}
-                        className="w-full px-2 py-1 border rounded"
+                        className="w-full px-2 py-1 border rounded text-xs"
                       />
                     ) : (
                       item.volume_2024.toLocaleString()

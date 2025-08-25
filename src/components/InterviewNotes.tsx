@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, MessageSquare, Calendar, User, FileText, Search, Filter, Brain } from 'lucide-react';
+import { Plus, MessageSquare, Calendar, User, FileText, Search, Filter, Brain, Upload, Loader2, FileCheck } from 'lucide-react';
 import { DatabaseService, InterviewNote, Department, isSupabaseConfigured } from '../lib/supabase';
 import { openAIService } from '../services/openai';
 
@@ -32,6 +32,9 @@ const InterviewNotes: React.FC = () => {
   const [currentInsight, setCurrentInsight] = useState('');
   const [currentChallenge, setCurrentChallenge] = useState('');
   const [currentOpportunity, setCurrentOpportunity] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [extractingContent, setExtractingContent] = useState(false);
+  const [uploadMode, setUploadMode] = useState<'manual' | 'upload'>('manual');
 
   // Load data on component mount
   React.useEffect(() => {
@@ -170,6 +173,129 @@ const InterviewNotes: React.FC = () => {
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploadedFile(file);
+      await extractContentFromFile(file);
+    }
+  };
+
+  const extractContentFromFile = async (file: File) => {
+    if (!openAIService.isConfigured()) {
+      setError('OpenAI API key not configured. Please add your API key to enable document analysis.');
+      return;
+    }
+
+    setExtractingContent(true);
+    setError(null);
+
+    try {
+      // Read file content
+      const fileContent = await readFileContent(file);
+      
+      // Use AI to extract structured information
+      const extractedData = await extractInterviewData(fileContent, file.name);
+      
+      // Update the form with extracted data
+      setNewNote(prev => ({
+        ...prev,
+        notes: extractedData.notes,
+        key_insights: extractedData.keyInsights,
+        challenges: extractedData.challenges,
+        opportunities: extractedData.opportunities,
+        duration_minutes: extractedData.duration || prev.duration_minutes
+      }));
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to extract content from document');
+    } finally {
+      setExtractingContent(false);
+    }
+  };
+
+  const readFileContent = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        resolve(content);
+      };
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+      
+      // Handle different file types
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      if (fileExtension === 'txt' || fileExtension === 'md') {
+        reader.readAsText(file);
+      } else {
+        // For other file types, read as text (basic support)
+        reader.readAsText(file);
+      }
+    });
+  };
+
+  const extractInterviewData = async (content: string, fileName: string) => {
+    const prompt = `
+    Analyze the following interview document and extract structured information:
+    
+    Document: ${fileName}
+    Content: ${content}
+    
+    Please extract and return a JSON object with the following structure:
+    {
+      "notes": "Comprehensive summary of the interview content",
+      "keyInsights": ["insight 1", "insight 2", ...],
+      "challenges": ["challenge 1", "challenge 2", ...],
+      "opportunities": ["opportunity 1", "opportunity 2", ...],
+      "duration": estimated_duration_in_minutes_or_null
+    }
+    
+    Focus on:
+    - Key insights about department operations, processes, or systems
+    - Challenges or pain points mentioned
+    - Opportunities for improvement or optimization
+    - Any specific issues with licensing, permits, or regulatory processes
+    `;
+
+    try {
+      const response = await fetch('/api/ai/chat-completion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert analyst specializing in government operations and interview analysis. Extract structured information from interview documents.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 2000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`API error: ${errorData.detail || response.statusText || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+      return JSON.parse(content);
+    } catch (error) {
+      console.error('Error extracting interview data:', error);
+      throw error;
+    }
+  };
+
   const aggregatedInsights = notes.reduce((acc, note) => {
     acc.insights.push(...note.key_insights);
     acc.challenges.push(...note.challenges);
@@ -277,6 +403,78 @@ const InterviewNotes: React.FC = () => {
       {showAddForm && (
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Interview Notes</h3>
+          
+          {/* Upload Mode Toggle */}
+          <div className="mb-6">
+            <div className="flex items-center space-x-4 mb-4">
+              <button
+                type="button"
+                onClick={() => setUploadMode('manual')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  uploadMode === 'manual'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Manual Entry
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadMode('upload')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  uploadMode === 'upload'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Upload Document
+              </button>
+            </div>
+
+            {/* Document Upload Section */}
+            {uploadMode === 'upload' && (
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors mb-6">
+                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-3" />
+                <label htmlFor="interview-document-upload" className="cursor-pointer">
+                  <span className="text-lg font-medium text-blue-600 hover:text-blue-500">
+                    Upload Interview Document
+                  </span>
+                  <p className="text-gray-500 mt-2">
+                    Upload a text file (.txt, .md) containing interview notes
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    AI will automatically extract insights, challenges, and opportunities
+                  </p>
+                  <input
+                    id="interview-document-upload"
+                    type="file"
+                    className="hidden"
+                    accept=".txt,.md,.doc,.docx"
+                    onChange={handleFileUpload}
+                  />
+                </label>
+                
+                {uploadedFile && (
+                  <div className="mt-4 flex items-center justify-center space-x-2">
+                    <FileCheck className="w-5 h-5 text-green-600" />
+                    <span className="text-sm text-green-700">
+                      Uploaded: {uploadedFile.name}
+                    </span>
+                  </div>
+                )}
+                
+                {extractingContent && (
+                  <div className="mt-4 flex items-center justify-center space-x-2">
+                    <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                    <span className="text-sm text-blue-700">
+                      Extracting content with AI...
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -353,12 +551,17 @@ const InterviewNotes: React.FC = () => {
                 required
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={uploadMode === 'upload' ? 'Content will be automatically extracted from uploaded document...' : 'Enter detailed interview notes...'}
+                disabled={extractingContent}
               />
             </div>
 
             {/* Key Insights */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Key Insights</label>
+              {uploadMode === 'upload' && newNote.key_insights && newNote.key_insights.length > 0 && (
+                <p className="text-sm text-green-600 mb-2">✓ Automatically extracted from document</p>
+              )}
               <div className="flex space-x-2 mb-2">
                 <input
                   type="text"
@@ -366,19 +569,31 @@ const InterviewNotes: React.FC = () => {
                   onChange={(e) => setCurrentInsight(e.target.value)}
                   placeholder="Add an insight"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={extractingContent}
                 />
                 <button
                   type="button"
                   onClick={addInsight}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  disabled={extractingContent}
                 >
                   Add
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {newNote.key_insights?.map((insight, index) => (
-                  <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                  <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center">
                     {insight}
+                    <button
+                      type="button"
+                      onClick={() => setNewNote(prev => ({
+                        ...prev,
+                        key_insights: prev.key_insights?.filter((_, i) => i !== index) || []
+                      }))}
+                      className="ml-2 text-blue-600 hover:text-blue-800"
+                    >
+                      ×
+                    </button>
                   </span>
                 ))}
               </div>
@@ -387,6 +602,9 @@ const InterviewNotes: React.FC = () => {
             {/* Challenges */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Challenges</label>
+              {uploadMode === 'upload' && newNote.challenges && newNote.challenges.length > 0 && (
+                <p className="text-sm text-green-600 mb-2">✓ Automatically extracted from document</p>
+              )}
               <div className="flex space-x-2 mb-2">
                 <input
                   type="text"
@@ -394,19 +612,31 @@ const InterviewNotes: React.FC = () => {
                   onChange={(e) => setCurrentChallenge(e.target.value)}
                   placeholder="Add a challenge"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={extractingContent}
                 />
                 <button
                   type="button"
                   onClick={addChallenge}
-                  className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50"
+                  disabled={extractingContent}
                 >
                   Add
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {newNote.challenges?.map((challenge, index) => (
-                  <span key={index} className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
+                  <span key={index} className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm flex items-center">
                     {challenge}
+                    <button
+                      type="button"
+                      onClick={() => setNewNote(prev => ({
+                        ...prev,
+                        challenges: prev.challenges?.filter((_, i) => i !== index) || []
+                      }))}
+                      className="ml-2 text-yellow-600 hover:text-yellow-800"
+                    >
+                      ×
+                    </button>
                   </span>
                 ))}
               </div>
@@ -415,6 +645,9 @@ const InterviewNotes: React.FC = () => {
             {/* Opportunities */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Opportunities</label>
+              {uploadMode === 'upload' && newNote.opportunities && newNote.opportunities.length > 0 && (
+                <p className="text-sm text-green-600 mb-2">✓ Automatically extracted from document</p>
+              )}
               <div className="flex space-x-2 mb-2">
                 <input
                   type="text"
@@ -422,19 +655,31 @@ const InterviewNotes: React.FC = () => {
                   onChange={(e) => setCurrentOpportunity(e.target.value)}
                   placeholder="Add an opportunity"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={extractingContent}
                 />
                 <button
                   type="button"
                   onClick={addOpportunity}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                  disabled={extractingContent}
                 >
                   Add
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {newNote.opportunities?.map((opportunity, index) => (
-                  <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                  <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm flex items-center">
                     {opportunity}
+                    <button
+                      type="button"
+                      onClick={() => setNewNote(prev => ({
+                        ...prev,
+                        opportunities: prev.opportunities?.filter((_, i) => i !== index) || []
+                      }))}
+                      className="ml-2 text-green-600 hover:text-green-800"
+                    >
+                      ×
+                    </button>
                   </span>
                 ))}
               </div>
@@ -450,9 +695,10 @@ const InterviewNotes: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                disabled={extractingContent}
               >
-                Save Interview Notes
+                {extractingContent ? 'Processing...' : 'Save Interview Notes'}
               </button>
             </div>
           </form>
