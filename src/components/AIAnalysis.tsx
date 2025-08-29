@@ -110,7 +110,7 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
     const channelCounts = { Manual: 0, Online: 0, Both: 0, Unknown: 0 };
 
     filteredData.forEach(item => {
-      const totalApplications = (item.volume_2024 ?? 0);
+      const totalApplications = (item.volume_2025 ?? 0);
       const accessMode = (item as any).access_mode?.toLowerCase() || '';
 
       if (totalApplications <= 0) return;
@@ -137,15 +137,15 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
       }));
   };
 
-  // 3) Processing table (2024 only; weighted by volume_2024)
+  // 3) Processing table (2025 only; weighted by volume_2025)
   const getProcessingTimeData = (): ProcessingTimeData[] => {
     const filteredData = getFilteredData();
     const departmentMap = new Map<string, { totalWeightedDays: number; totalApplications: number }>();
 
     filteredData.forEach(item => {
       const dept = item.department_name.replace('Department of ', '');
-      const apps = item.volume_2024 ?? 0;
-      const p = item.processing_time_2024 ?? 0;
+      const apps = item.volume_2025 ?? 0;
+      const p = item.processing_time_2025 ?? 0;
 
       if (apps > 0) {
         if (!departmentMap.has(dept)) departmentMap.set(dept, { totalWeightedDays: 0, totalApplications: 0 });
@@ -164,14 +164,14 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
       .sort((a, b) => b.avgProcessingDays - a.avgProcessingDays);
   };
 
-  // 4) Applications pie (2024 only)
+  // 4) Applications pie (2025 only)
   const getApplicationsData = () => {
     const filteredData = getFilteredData();
     const departmentMap = new Map<string, number>();
 
     filteredData.forEach(item => {
       const dept = item.department_name.replace('Department of ', '');
-      const apps = item.volume_2024 ?? 0;
+      const apps = item.volume_2025 ?? 0;
       departmentMap.set(dept, (departmentMap.get(dept) || 0) + apps);
     });
 
@@ -187,14 +187,14 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
       .sort((a, b) => b.value - a.value);
   };
 
-  // 5) Revenue pie (2024 only)
+  // 5) Revenue pie (2025 only)
   const getRevenueData = () => {
     const filteredData = getFilteredData();
     const departmentMap = new Map<string, number>();
 
     filteredData.forEach(item => {
       const dept = item.department_name.replace('Department of ', '');
-      const rev = item.revenue_2024 ?? 0;
+      const rev = item.revenue_2025 ?? 0;
       departmentMap.set(dept, (departmentMap.get(dept) || 0) + rev);
     });
 
@@ -402,7 +402,7 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
 
               {/* 2. Pie Chart - Manual vs Online (2024) */}
               <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Digitized Process (2024)</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Digitized Process (2025)</h3>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsPieChart>
@@ -429,14 +429,14 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
                   </ResponsiveContainer>
                 </div>
                 <div className="mt-2 text-xs text-gray-600">
-                  <p>Application volume by access method (2024)</p>
+                  <p>Application volume by access method (2025)</p>
                 </div>
               </div>
             </div>
 
             {/* Row 2: Processing Time Table (2024) */}
             <div className="bg-gray-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Average Processing Time by Department (2024)</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Average Processing Time by Department (2025)</h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-100">
@@ -448,7 +448,7 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
                         Avg Processing Days (Weighted)
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total Applications (2024)
+                        Total Applications (2025)
                       </th>
                     </tr>
                   </thead>
@@ -480,9 +480,9 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
 
             {/* Row 3: Applications and Revenue Distribution (2024) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Applications by Department (2024) */}
+              {/* Applications by Department (2025) */}
               <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Applications Processed by Department (2024)</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Applications Processed by Department (2025)</h3>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsPieChart>
@@ -509,13 +509,13 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
                   </ResponsiveContainer>
                 </div>
                 <div className="mt-2 text-xs text-gray-600">
-                  <p>Total applications processed by department (2024)</p>
+                  <p>Total applications processed by department (2025)</p>
                 </div>
               </div>
 
-              {/* Revenue by Department (2024) */}
+              {/* Revenue by Department (2025) */}
               <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Department (2024)</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Department (2025)</h3>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsPieChart>
@@ -542,7 +542,7 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
                   </ResponsiveContainer>
                 </div>
                 <div className="mt-2 text-xs text-gray-600">
-                  <p>Total revenue generated by department (2024)</p>
+                  <p>Total revenue generated by department (2025)</p>
                 </div>
               </div>
             </div>
