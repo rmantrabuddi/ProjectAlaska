@@ -364,9 +364,14 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
               <div className="bg-gray-50 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">License Types by Department</h3>
                 <div className="h-80">
+                      interval={0}
+                      width={80}
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={getDepartmentTypeData()}>
-                      <CartesianGrid strokeDasharray="3 3" />
+                    <Tooltip 
+                      formatter={(value: any, name: any) => [value, `${name} (${value} types)`]}
+                      labelFormatter={(label: any) => `Department: ${label}`}
+                    />
                       <XAxis 
                         dataKey="department" 
                         angle={-45}
@@ -402,15 +407,23 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
                         outerRadius={100}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ name, percentage }: any) => `${name}: ${percentage}%`}
+                        label={({ name, percentage, value }: any) => `${name}: ${Number(value).toLocaleString()} (${percentage}%)`}
                       >
                         {getChannelData().map((_, index) => (
                           <Cell key={`cell-ch-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: any, name: any) => [Number(value).toLocaleString(), name]} />
+                      <Tooltip 
+                        formatter={(value: any, name: any) => [
+                          `${Number(value).toLocaleString()} applications`, 
+                          `${name} Access`
+                        ]} 
+                      />
                     </RechartsPieChart>
                   </ResponsiveContainer>
+                </div>
+                <div className="mt-2 text-xs text-gray-600">
+                  <p>Application volume by access method (2024)</p>
                 </div>
               </div>
             </div>
@@ -437,7 +450,11 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
                     {getProcessingTimeData().map((row, index) => (
                       <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {row.department}
+                          <div className="max-w-xs">
+                            <div className="truncate" title={row.department}>
+                              {row.department}
+                            </div>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {row.avgProcessingDays.toFixed(1)} days
@@ -449,6 +466,12 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="mt-2 text-xs text-gray-600">
+                <p>Weighted average processing time based on application volume</p>
+              </div>
+              <div className="mt-2 text-xs text-gray-600">
+                <p>Total unique license types by department and division</p>
               </div>
             </div>
 
@@ -467,15 +490,23 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
                         outerRadius={100}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ name, percentage }: any) => `${name}: ${percentage}%`}
+                        label={({ name, percentage, value }: any) => `${name}: ${Number(value).toLocaleString()} (${percentage}%)`}
                       >
                         {getApplicationsData().map((_, index) => (
                           <Cell key={`cell-app-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: any, name: any) => [Number(value).toLocaleString(), name]} />
+                      <Tooltip 
+                        formatter={(value: any, name: any) => [
+                          `${Number(value).toLocaleString()} applications`, 
+                          name
+                        ]} 
+                      />
                     </RechartsPieChart>
                   </ResponsiveContainer>
+                </div>
+                <div className="mt-2 text-xs text-gray-600">
+                  <p>Total applications processed by department (2024)</p>
                 </div>
               </div>
 
@@ -492,15 +523,23 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
                         outerRadius={100}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ name, percentage }: any) => `${name}: ${percentage}%`}
+                        label={({ name, percentage, value }: any) => `${name}: $${Number(value).toLocaleString()} (${percentage}%)`}
                       >
                         {getRevenueData().map((_, index) => (
                           <Cell key={`cell-rev-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: any, name: any) => [`$${Number(value).toLocaleString()}`, name]} />
+                      <Tooltip 
+                        formatter={(value: any, name: any) => [
+                          `$${Number(value).toLocaleString()}`, 
+                          name
+                        ]} 
+                      />
                     </RechartsPieChart>
                   </ResponsiveContainer>
+                </div>
+                <div className="mt-2 text-xs text-gray-600">
+                  <p>Total revenue generated by department (2024)</p>
                 </div>
               </div>
             </div>
