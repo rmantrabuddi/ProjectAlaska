@@ -379,7 +379,9 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
                         height={100}
                         fontSize={12}
                       />
-                      <YAxis />
+                      <YAxis 
+                        formatter={(value: any, name: any) => [`${value} types`, `${name} Division`]}
+                      />
                       <Tooltip />
                       {allDivisions.map((division, index) => (
                         <Bar 
@@ -387,10 +389,14 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
                           dataKey={division}
                           stackId="a"
                           fill={COLORS[index % COLORS.length]}
+                          label={({ value }: any) => value > 0 ? value : ''}
                         />
                       ))}
                     </BarChart>
                   </ResponsiveContainer>
+                </div>
+                <div className="mt-2 text-xs text-gray-600">
+                  <p>Total unique license types by department and division</p>
                 </div>
               </div>
 
@@ -469,9 +475,6 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ data, selectedDepartment }) => 
               </div>
               <div className="mt-2 text-xs text-gray-600">
                 <p>Weighted average processing time based on application volume</p>
-              </div>
-              <div className="mt-2 text-xs text-gray-600">
-                <p>Total unique license types by department and division</p>
               </div>
             </div>
 
