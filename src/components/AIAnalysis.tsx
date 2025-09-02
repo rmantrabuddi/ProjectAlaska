@@ -231,14 +231,14 @@ const DataGathering: React.FC = () => {
         regulations: row.regulations?.toString().trim() || '',
         user_type: row.user_type?.toString().trim() || '',
         cost: row.cost?.toString().trim() || '',
-        revenue_2023: parseFloat(row.revenue_2023?.toString().replace(/[,$]/g, '') || '0') || 0,
         revenue_2024: parseFloat(row.revenue_2024?.toString().replace(/[,$]/g, '') || '0') || 0,
         revenue_2025: parseFloat(row.revenue_2025?.toString().replace(/[,$]/g, '') || '0') || 0,
-        processing_time_2023: parseFloat(row.processing_time_2023?.toString() || '0') || 0,
+        revenue_2025: parseFloat(row.revenue_2025?.toString().replace(/[,$]/g, '') || '0') || 0,
         processing_time_2024: parseFloat(row.processing_time_2024?.toString() || '0') || 0,
         processing_time_2025: parseFloat(row.processing_time_2025?.toString() || '0') || 0,
         volume_2023: parseInt(row.volume_2023?.toString() || '0') || 0,
         volume_2024: parseInt(row.volume_2024?.toString() || '0') || 0,
+        volume_2025: parseInt(row.volume_2025?.toString() || '0') || 0,
         volume_2025: parseInt(row.volume_2025?.toString() || '0') || 0,
         status: 'Active' as const
       };
@@ -316,6 +316,63 @@ const DataGathering: React.FC = () => {
           <p className="text-red-700">{error}</p>
           <button 
             onClick={() => setError(null)}
+            {/* Department Counts by Division Type */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Department Records by Division</h3>
+              <div style={{ height: '400px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={getDepartmentDivisionData()} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="department" 
+                      angle={0}
+                      textAnchor="middle"
+                      height={60}
+                      interval={0}
+                      fontSize={11}
+                      tickFormatter={(value) => {
+                        if (value.length > 15) {
+                          const words = value.split(' ');
+                          const mid = Math.ceil(words.length / 2);
+                          return words.slice(0, mid).join(' ');
+                        }
+                        return value;
+                      }}
+                    />
+                    <YAxis label={{ value: 'Number of Records', angle: -90, position: 'insideLeft' }} />
+                    <Tooltip 
+                      formatter={(value, name) => [`${value} records`, name]}
+                      labelFormatter={(label) => `Department: ${label}`}
+                    />
+                    <Legend />
+                    {getUniqueDivisions().map((division, index) => (
+                      <Bar 
+                        key={division}
+                        dataKey={division} 
+                        stackId="divisions" 
+                        fill={COLORS[index % COLORS.length]} 
+                        name={division}
+                      >
+                        <LabelList 
+                          dataKey={division} 
+                          position="center" 
+                          fontSize={10} 
+                          fill="white" 
+                          formatter={(value: number) => value > 0 ? value : ''} 
+                        />
+                      </Bar>
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-2 text-xs text-gray-600">
+                <p>Number of records by department, stacked by division type</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: More Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             className="text-red-600 hover:text-red-800 text-sm mt-2"
           >
             Dismiss
@@ -338,7 +395,6 @@ const DataGathering: React.FC = () => {
               <div className="text-left space-y-1">
                 <p>• <strong>Required:</strong> department_name, division, license_permit_type</p>
                 <p>• <strong>Optional:</strong> description, access_mode, regulations, user_type, cost</p>
-                <p>• <strong>Financial:</strong> revenue_2023/2024/2025</p>
                 <p>• <strong>Performance:</strong> processing_time_2023/2024/2025, volume_2023/2024/2025</p>
               </div>
             </div>
@@ -347,8 +403,6 @@ const DataGathering: React.FC = () => {
               type="file"
               className="hidden"
               accept=".csv,.xlsx,.xls"
-              onChange={handleFileUpload}
-            />
           </label>
         </div>
       </div>
@@ -377,6 +431,10 @@ const DataGathering: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">Division</label>
             <input
               type="text"
+          </div>
+
+          {/* Row 3: Revenue Chart */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               value={filters.division}
               onChange={(e) => setFilters({ ...filters, division: e.target.value })}
               placeholder="Filter by division"
@@ -404,6 +462,17 @@ const DataGathering: React.FC = () => {
                 placeholder="Search all fields"
                 className="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+
+            {/* Empty space for future chart */}
+            <div className="bg-white rounded-lg shadow-md p-6 flex items-center justify-center">
+              <div className="text-center text-gray-500">
+                <div className="w-16 h-16 bg-gray-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
+                  <BarChart3 className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-sm">Additional chart space</p>
+                <p className="text-xs">Future analytics visualization</p>
+              </div>
             </div>
           </div>
         </div>
