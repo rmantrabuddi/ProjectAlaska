@@ -231,15 +231,15 @@ const DataGathering: React.FC = () => {
         regulations: row.regulations?.toString().trim() || '',
         user_type: row.user_type?.toString().trim() || '',
         cost: row.cost?.toString().trim() || '',
-        revenue_2022: parseFloat(row.revenue_2022?.toString().replace(/[,$]/g, '') || '0') || 0,
         revenue_2023: parseFloat(row.revenue_2023?.toString().replace(/[,$]/g, '') || '0') || 0,
         revenue_2024: parseFloat(row.revenue_2024?.toString().replace(/[,$]/g, '') || '0') || 0,
-        processing_time_2022: parseFloat(row.processing_time_2022?.toString() || '0') || 0,
+        revenue_2025: parseFloat(row.revenue_2025?.toString().replace(/[,$]/g, '') || '0') || 0,
         processing_time_2023: parseFloat(row.processing_time_2023?.toString() || '0') || 0,
         processing_time_2024: parseFloat(row.processing_time_2024?.toString() || '0') || 0,
-        volume_2022: parseInt(row.volume_2022?.toString() || '0') || 0,
+        processing_time_2025: parseFloat(row.processing_time_2025?.toString() || '0') || 0,
         volume_2023: parseInt(row.volume_2023?.toString() || '0') || 0,
         volume_2024: parseInt(row.volume_2024?.toString() || '0') || 0,
+        volume_2025: parseInt(row.volume_2025?.toString() || '0') || 0,
         status: 'Active' as const
       };
       console.log(transformedRow)
@@ -338,8 +338,8 @@ const DataGathering: React.FC = () => {
               <div className="text-left space-y-1">
                 <p>• <strong>Required:</strong> department_name, division, license_permit_type</p>
                 <p>• <strong>Optional:</strong> description, access_mode, regulations, user_type, cost</p>
-                <p>• <strong>Financial:</strong> revenue_2022/2023/2024</p>
-                <p>• <strong>Performance:</strong> processing_time_2022/2023/2024, volume_2022/2023/2024</p>
+                <p>• <strong>Financial:</strong> revenue_2023/2024/2025</p>
+                <p>• <strong>Performance:</strong> processing_time_2023/2024/2025, volume_2023/2024/2025</p>
               </div>
             </div>
             <input
