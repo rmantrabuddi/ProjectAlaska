@@ -29,12 +29,13 @@ export interface InventoryMasterRecord {
   revenue_2022?: string;
   revenue_2023?: string;
   revenue_2024?: string;
-  volume_2022?: string;
+  revenue_2025?: string;
   volume_2023?: string;
   volume_2024?: string;
-  processing_time_2022?: string;
+  volume_2025?: string;
   processing_time_2023?: string;
   processing_time_2024?: string;
+  processing_time_2025?: string;
   digitized?: string;
   workflow_automated_percent?: string;
   notes?: string;
@@ -191,7 +192,7 @@ export const inventoryService = {
   },
 
   // Get analytics data for dashboard
-  async getAnalytics(fiscalYear: number = 2024) {
+  async getAnalytics(fiscalYear: number = 2025) {
     const { data, error } = await supabase
       .from('inventory_master')
       .select(`
@@ -211,7 +212,7 @@ export const inventoryService = {
   },
 
   // Get types count by department
-  async getTypesCountByDepartment(fiscalYear: number = 2024) {
+  async getTypesCountByDepartment(fiscalYear: number = 2025) {
     const { data, error } = await supabase
       .from('inventory_master')
       .select('department, type')
@@ -251,11 +252,11 @@ export const inventoryService = {
       .from('inventory_master')
       .select(`
         department,
-        processing_time_2024,
-        volume_2024
+        processing_time_2025,
+        volume_2025
       `)
       .eq('status', 'Active')
-      .not('processing_time_2024', 'is', null);
+      .not('processing_time_2025', 'is', null);
     
     if (error) throw error;
     
@@ -270,10 +271,10 @@ export const inventoryService = {
         };
       }
       
-      if (item.processing_time_2024) {
-        acc[dept].processingTimes.push(item.processing_time_2024);
+      if (item.processing_time_2025) {
+        acc[dept].processingTimes.push(item.processing_time_2025);
       }
-      acc[dept].totalApplications += parseInt(item.volume_2024 || '0') || 0;
+      acc[dept].totalApplications += parseInt(item.volume_2025 || '0') || 0;
       
       return acc;
     }, {} as Record<string, any>);

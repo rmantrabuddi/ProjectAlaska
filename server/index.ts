@@ -35,15 +35,15 @@ const InventoryRow = z.object({
   user_type: z.string().optional(),
   cost: z.string().optional(),
 
-  revenue_2022: z.number().nullable().optional(),
   revenue_2023: z.number().nullable().optional(),
   revenue_2024: z.number().nullable().optional(),
-  processing_time_2022: z.number().nullable().optional(),
+  revenue_2025: z.number().nullable().optional(),
   processing_time_2023: z.number().nullable().optional(),
   processing_time_2024: z.number().nullable().optional(),
-  volume_2022: z.number().int().nullable().optional(),
+  processing_time_2025: z.number().nullable().optional(),
   volume_2023: z.number().int().nullable().optional(),
   volume_2024: z.number().int().nullable().optional(),
+  volume_2025: z.number().int().nullable().optional(),
   status: z.string().optional().default(""),
 });
 const BulkPayload = z.object({ rows: z.array(InventoryRow).min(1) });

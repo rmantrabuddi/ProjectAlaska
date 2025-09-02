@@ -56,15 +56,15 @@ export interface InventoryData {
   regulations: string;
   user_type: string;
   cost: string;
-  revenue_2022: number;
   revenue_2023: number;
   revenue_2024: number;
-  processing_time_2022: number;
+  revenue_2025: number;
   processing_time_2023: number;
   processing_time_2024: number;
-  volume_2022: number;
+  processing_time_2025: number;
   volume_2023: number;
   volume_2024: number;
+  volume_2025: number;
   status: 'Active' | 'Inactive' | 'Under Review';
   created_at: string;
   updated_at: string;
