@@ -233,14 +233,16 @@ const DataGathering: React.FC = () => {
         cost: row.cost?.toString().trim() || '',
         revenue_2024: parseFloat(row.revenue_2024?.toString().replace(/[,$]/g, '') || '0') || 0,
         revenue_2025: parseFloat(row.revenue_2025?.toString().replace(/[,$]/g, '') || '0') || 0,
+        revenue_2025: parseFloat(row.revenue_2025?.toString().replace(/[,$]/g, '') || '0') || 0,
         processing_time_2024: parseFloat(row.processing_time_2024?.toString() || '0') || 0,
         processing_time_2025: parseFloat(row.processing_time_2025?.toString() || '0') || 0,
         volume_2023: parseInt(row.volume_2023?.toString() || '0') || 0,
         volume_2024: parseInt(row.volume_2024?.toString() || '0') || 0,
         volume_2025: parseInt(row.volume_2025?.toString() || '0') || 0,
+        volume_2025: parseInt(row.volume_2025?.toString() || '0') || 0,
         status: 'Active' as const
       };
-      console.log(transformedRow);
+      console.log(transformedRow)
       validatedData.push(transformedRow);
     }
 
@@ -336,6 +338,348 @@ const DataGathering: React.FC = () => {
               <div className="text-left space-y-1">
                 <p>• <strong>Required:</strong> department_name, division, license_permit_type</p>
                 <p>• <strong>Optional:</strong> description, access_mode, regulations, user_type, cost</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Departments</p>
+              <p className="text-2xl font-bold text-gray-900">{new Set(getFilteredData().map(item => item.department_name)).size}</p>
+            </div>
+            <Building className="w-8 h-8 text-green-600" />
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Revenue (2025)</p>
+              <p className="text-2xl font-bold text-gray-900">
+                ${getFilteredData().reduce((sum, item) => sum + ((item as any).revenue_2025 || 0), 0).toLocaleString()}
+              </p>
+            </div>
+            <DollarSign className="w-8 h-8 text-purple-600" />
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Applications (2025)</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {getFilteredData().reduce((sum, item) => sum + ((item as any).volume_2025 || 0), 0).toLocaleString()}
+              </p>
+            </div>
+            <TrendingUp className="w-8 h-8 text-orange-600" />
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* License Types by Department (Bar Chart) */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">License Types by Department</h3>
+          <div style={{ height: '400px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={getLicenseTypesData()} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="department" 
+                  angle={0}
+                  textAnchor="middle"
+                  height={60}
+                  interval={0}
+                  fontSize={11}
+                  tickFormatter={(value) => {
+                    if (value.length > 15) {
+                      const words = value.split(' ');
+                      const mid = Math.ceil(words.length / 2);
+                      return words.slice(0, mid).join(' ');
+                    }
+                    return value;
+                  }}
+                />
+                <YAxis label={{ value: 'Number of License Types', angle: -90, position: 'insideLeft' }} />
+                <Tooltip 
+                  formatter={(value, name) => [`${value} types`, name]}
+                  labelFormatter={(label) => `Department: ${label}`}
+                />
+                <Legend />
+                <Bar dataKey="License" stackId="a" fill="#3B82F6" name="License">
+                  <LabelList dataKey="License" position="center" fontSize={10} fill="white" formatter={(value: number) => value > 0 ? value : ''} />
+                </Bar>
+                <Bar dataKey="Permit" stackId="a" fill="#10B981" name="Permit">
+                  <LabelList dataKey="Permit" position="center" fontSize={10} fill="white" formatter={(value: number) => value > 0 ? value : ''} />
+                </Bar>
+                <Bar dataKey="Registration" stackId="a" fill="#F59E0B" name="Registration">
+                  <LabelList dataKey="Registration" position="center" fontSize={10} fill="white" formatter={(value: number) => value > 0 ? value : ''} />
+                </Bar>
+                <Bar dataKey="Certificate" stackId="a" fill="#EF4444" name="Certificate">
+                  <LabelList dataKey="Certificate" position="center" fontSize={10} fill="white" formatter={(value: number) => value > 0 ? value : ''} />
+                </Bar>
+                <Bar dataKey="Other" stackId="a" fill="#8B5CF6" name="Other">
+                  <LabelList dataKey="Other" position="center" fontSize={10} fill="white" formatter={(value: number) => value > 0 ? value : ''} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            <p>Distribution of license and permit types across Alaska state departments</p>
+          </div>
+        </div>
+
+        {/* Department Counts by Division Type */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Department Records by Division</h3>
+          <div style={{ height: '400px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={getDepartmentDivisionData()} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="department" 
+                  angle={0}
+                  textAnchor="middle"
+                  height={60}
+                  interval={0}
+                  fontSize={11}
+                  tickFormatter={(value) => {
+                    if (value.length > 15) {
+                      const words = value.split(' ');
+                      const mid = Math.ceil(words.length / 2);
+                      return words.slice(0, mid).join(' ');
+                    }
+                    return value;
+                  }}
+                />
+                <YAxis label={{ value: 'Number of Records', angle: -90, position: 'insideLeft' }} />
+                <Tooltip 
+                  formatter={(value, name) => [`${value} records`, name]}
+                  labelFormatter={(label) => `Department: ${label}`}
+                />
+                <Legend />
+                {getUniqueDivisions().map((division, index) => (
+                  <Bar 
+                    key={division}
+                    dataKey={division} 
+                    stackId="divisions" 
+                    fill={COLORS[index % COLORS.length]} 
+                    name={division}
+                  >
+                    <LabelList 
+                      dataKey={division} 
+                      position="center" 
+                      fontSize={10} 
+                      fill="white" 
+                      formatter={(value: number) => value > 0 ? value : ''} 
+                    />
+                  </Bar>
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            <p>Number of records by department, stacked by division type</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 3: Pie Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Digitized Process Distribution */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Digitized Process Distribution</h3>
+          <div style={{ height: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={getChannelData()}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {getChannelData().map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`${value} applications`, 'Volume']} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            <p>Distribution of application processing channels</p>
+          </div>
+        </div>
+
+        {/* Applications by Department */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Applications by Department (2025)</h3>
+          <div style={{ height: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={getApplicationsData()}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {getApplicationsData().map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`${value} applications`, 'Volume']} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            <p>Total application volume distribution across departments</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 4: Revenue Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Revenue by Department */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Department (2025)</h3>
+          <div style={{ height: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={getRevenueData()}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value, percent }) => `${name}: $${value.toLocaleString()} (${(percent * 100).toFixed(0)}%)`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {getRevenueData().map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Revenue']} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            <p>Revenue distribution across departments for fiscal year 2025</p>
+          </div>
+        </div>
+
+        {/* Empty space for future chart */}
+        <div className="bg-white rounded-lg shadow-md p-6 flex items-center justify-center">
+          <div className="text-center text-gray-500">
+            <div className="w-16 h-16 bg-gray-100 rounded-lg mx-auto mb-3 flex items-center justify-center">
+              <BarChart3 className="w-8 h-8 text-gray-400" />
+            </div>
+            <p className="text-sm">Additional chart space</p>
+            <p className="text-xs">Future analytics visualization</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Processing Time Analysis Table */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">Processing Time Analysis by Department</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Processing Days</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Applications</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Efficiency Score</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {getProcessingTimeData().map((item, index) => (
+                <tr key={index} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {item.department}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {item.avgProcessingDays.toFixed(1)} days
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {item.totalApplications.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div className="flex items-center">
+                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        item.avgProcessingDays <= 30 ? 'bg-green-100 text-green-800' :
+                        item.avgProcessingDays <= 60 ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {item.avgProcessingDays <= 30 ? 'Excellent' :
+                         item.avgProcessingDays <= 60 ? 'Good' : 'Needs Improvement'}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* AI Insights Section */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">AI-Powered Insights</h3>
+          <button 
+            onClick={() => {
+              if (openAIService.isConfigured()) {
+                alert('AI analysis feature coming soon! This will provide comprehensive insights across all departments.');
+              } else {
+                alert('Please configure OpenAI API key to use AI analysis features.');
+              }
+            }}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            <Brain className="w-4 h-4 mr-2" />
+            Generate Comprehensive Analysis
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-blue-50 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-900 mb-2">Key Findings</h4>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• Cross-departmental process variations identified</li>
+              <li>• Revenue optimization opportunities detected</li>
+              <li>• Processing time bottlenecks highlighted</li>
+            </ul>
+          </div>
+          
+          <div className="bg-yellow-50 rounded-lg p-4">
+            <h4 className="font-semibold text-yellow-900 mb-2">Opportunities</h4>
+            <ul className="text-sm text-yellow-800 space-y-1">
+              <li>• Standardize processing workflows</li>
+              <li>• Implement digital-first approaches</li>
+              <li>• Enhance inter-departmental coordination</li>
+            </ul>
+          </div>
+          
+          <div className="bg-green-50 rounded-lg p-4">
+            <h4 className="font-semibold text-green-900 mb-2">Recommendations</h4>
+            <ul className="text-sm text-green-800 space-y-1">
+              <li>• Develop unified licensing platform</li>
+              <li>• Create shared service standards</li>
+              <li>• Establish performance benchmarks</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
                 <p>• <strong>Performance:</strong> processing_time_2023/2024/2025, volume_2023/2024/2025</p>
               </div>
             </div>
