@@ -242,7 +242,7 @@ const DataGathering: React.FC = () => {
         volume_2025: parseInt(row.volume_2025?.toString() || '0') || 0,
         status: 'Active' as const
       };
-      console.log(transformedRow)
+      console.log(transformedRow);
       validatedData.push(transformedRow);
     }
 
@@ -296,7 +296,7 @@ const DataGathering: React.FC = () => {
       setEditingId(null);
       setEditingData(null);
     }
-              <div style={{ height: '400px' }}>
+  };
 
   const handleCancel = () => {
     setEditingId(null);
@@ -306,12 +306,13 @@ const DataGathering: React.FC = () => {
   if (loading && data.length === 0) {
     return <div className="flex justify-center items-center h-64">
       <div className="text-lg">Loading dashboard data...</div>
+    </div>;
   }
 
   return (
     <div className="space-y-6">
       {error && (
-                          return words.slice(0, mid).join(' ');
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <p className="text-red-700">{error}</p>
           <button 
             onClick={() => setError(null)}
@@ -629,28 +630,7 @@ const DataGathering: React.FC = () => {
         </div>
       )}
     </div>
+  );
 };
-      }
-      
-      const type = item.license_permit_type.toLowerCase();
-      if (type.includes('license')) {
-        departmentData[deptName].License++;
-      } else if (type.includes('permit')) {
-        departmentData[deptName].Permit++;
-      } else if (type.includes('registration')) {
-        departmentData[deptName].Registration++;
-      } else if (type.includes('certificate')) {
-        departmentData[deptName].Certificate++;
-      } else {
-        departmentData[deptName].Other++;
-      }
-    });
-    
-    return Object.entries(departmentData).map(([department, counts]) => ({
-      department,
-      ...counts
-    }));
-  };
-
 
 export default DataGathering;
