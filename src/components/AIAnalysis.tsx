@@ -233,16 +233,14 @@ const DataGathering: React.FC = () => {
         cost: row.cost?.toString().trim() || '',
         revenue_2024: parseFloat(row.revenue_2024?.toString().replace(/[,$]/g, '') || '0') || 0,
         revenue_2025: parseFloat(row.revenue_2025?.toString().replace(/[,$]/g, '') || '0') || 0,
-        revenue_2025: parseFloat(row.revenue_2025?.toString().replace(/[,$]/g, '') || '0') || 0,
         processing_time_2024: parseFloat(row.processing_time_2024?.toString() || '0') || 0,
         processing_time_2025: parseFloat(row.processing_time_2025?.toString() || '0') || 0,
         volume_2023: parseInt(row.volume_2023?.toString() || '0') || 0,
         volume_2024: parseInt(row.volume_2024?.toString() || '0') || 0,
         volume_2025: parseInt(row.volume_2025?.toString() || '0') || 0,
-        volume_2025: parseInt(row.volume_2025?.toString() || '0') || 0,
         status: 'Active' as const
       };
-      console.log(transformedRow)
+      console.log(transformedRow);
       validatedData.push(transformedRow);
     }
 
@@ -284,7 +282,65 @@ const DataGathering: React.FC = () => {
   const handleSave = async () => {
     if (editingData) {
       try {
-                <p>• <strong>Performance:</strong> processing_time_2023/2024/2025, volume_2023/2024/2025</p>
+        if (isSupabaseConfigured()) {
+          const updatedItem = await DatabaseService.updateInventoryData(editingData.id, editingData);
+          setData(prev => prev.map(item => item.id === editingData.id ? updatedItem : item));
+          setFilteredData(prev => prev.map(item => item.id === editingData.id ? updatedItem : item));
+        } else {
+          setData(prev => prev.map(item => item.id === editingData.id ? editingData : item));
+          setFilteredData(prev => prev.map(item => item.id === editingData.id ? editingData : item));
+        }
+        setEditingId(null);
+        setEditingData(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save changes');
+      }
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingId(null);
+    setEditingData(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Data Gathering & Management</h2>
+        <p className="text-gray-600 mb-6">
+          Upload and manage department inventory data including licenses, permits, and regulatory information.
+        </p>
+
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <X className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error</h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{error}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-4">
+          <label htmlFor="file-upload" className="cursor-pointer">
+            <div className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+              <Upload className="w-4 h-4 mr-2" />
+              Upload Spreadsheet
+            </div>
+            <div className="mt-2 text-sm text-gray-500">
+              <p>Supported formats: CSV, Excel (.xlsx, .xls)</p>
+              <div className="mt-1">
+                <p><strong>Required columns:</strong> department_name, division, license_permit_type</p>
+                <p><strong>Optional columns:</strong> description, access_mode, regulations, user_type, cost</p>
+                <p>• <strong>Financial:</strong> revenue_2024, revenue_2025</p>
+                <p>• <strong>Performance:</strong> processing_time_2024/2025, volume_2023/2024/2025</p>
               </div>
             </div>
             <input
