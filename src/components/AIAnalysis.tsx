@@ -88,7 +88,226 @@ const DataGathering: React.FC = () => {
       let parsedData: any[] = [];
 
       if (fileExtension === 'csv') {
-                <p>• <strong>Optional:</strong> description, access_mode, regulations, user_type, cost</p>
+        // Parse CSV
+        Papa.parse(file, {
+          header: true,
+          complete: (results) => {
+            parsedData = results.data;
+          },
+          error: (error) => {
+            throw new Error(`CSV parsing error: ${error.message}`);
+          }
+        });
+      } else {
+        // Parse Excel
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        parsedData = XLSX.utils.sheet_to_json(worksheet);
+      }
+
+      // Save to database if configured
+      if (isSupabaseConfigured()) {
+        await DatabaseService.saveInventoryData(parsedData);
+        await loadInitialData(); // Reload data
+      } else {
+        // Just update local state for demo
+        setData(parsedData);
+        setFilteredData(parsedData);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to parse file');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (item: InventoryData) => {
+    setEditingId(item.id);
+    setEditingData({ ...item });
+  };
+
+  const handleSave = async () => {
+    if (!editingData || !editingId) return;
+    
+    setLoading(true);
+    try {
+      if (isSupabaseConfigured()) {
+        await DatabaseService.updateInventoryItem(editingId, editingData);
+        await loadInitialData(); // Reload data
+      } else {
+        // Update local state for demo
+        const updatedData = data.map(item => 
+          item.id === editingId ? editingData : item
+        );
+        setData(updatedData);
+        setFilteredData(updatedData);
+      }
+      setEditingId(null);
+      setEditingData(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save changes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingId(null);
+    setEditingData(null);
+  };
+
+  // Filter and search functionality
+  React.useEffect(() => {
+    let filtered = data;
+
+    // Apply filters
+    if (filters.department_name) {
+      filtered = filtered.filter(item => 
+        item.department_name.toLowerCase().includes(filters.department_name.toLowerCase())
+      );
+    }
+    if (filters.division) {
+      filtered = filtered.filter(item => 
+        item.division.toLowerCase().includes(filters.division.toLowerCase())
+      );
+    }
+    if (filters.license_permit_type) {
+      filtered = filtered.filter(item => 
+        item.license_permit_type.toLowerCase().includes(filters.license_permit_type.toLowerCase())
+      );
+    }
+
+    // Apply search
+    if (searchTerm) {
+      filtered = filtered.filter(item =>
+        Object.values(item).some(value =>
+          value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
+    }
+
+    setFilteredData(filtered);
+  }, [data, filters, searchTerm]);
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Data Gathering</h1>
+          <p className="text-gray-600">Upload and manage department inventory data</p>
+        </div>
+        <div className="flex space-x-3">
+          <label className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer transition-colors">
+            <Upload className="w-4 h-4 mr-2" />
+            Upload Data
+            <input
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={handleFileUpload}
+              className="hidden"
+              disabled={loading}
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <X className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Indicator */}
+      {loading && (
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Processing...</span>
+        </div>
+      )}
+
+      {/* Upload Instructions */}
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+        <h3 className="text-sm font-medium text-blue-800 mb-2">Upload Instructions</h3>
+        <p className="text-sm text-blue-700 mb-2">
+          Upload a CSV or Excel file with the following columns:
+        </p>
+        <div className="text-sm text-blue-700">
+          <p>• <strong>Required:</strong> department_name, division, license_permit_type</p>
+          <p>• <strong>Metrics:</strong> revenue_2024, processing_time_2024, volume_2024</p>
+          <p>• <strong>Optional:</strong> description, access_mode, regulations, user_type, cost</p>
+        </div>
+      </div>
+
+      {/* Filters and Search */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center space-x-4 mb-4">
+          <Filter className="w-5 h-5 text-gray-400" />
+          <h3 className="text-lg font-medium text-gray-900">Filters & Search</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+            <select
+              value={filters.department_name}
+              onChange={(e) => setFilters(prev => ({ ...prev, department_name: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Departments</option>
+              {departments.map(dept => (
+                <option key={dept.id} value={dept.name}>{dept.short_name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Division</label>
+            <input
+              type="text"
+              value={filters.division}
+              onChange={(e) => setFilters(prev => ({ ...prev, division: e.target.value }))}
+              placeholder="Filter by division..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">License Type</label>
+            <input
+              type="text"
+              value={filters.license_permit_type}
+              onChange={(e) => setFilters(prev => ({ ...prev, license_permit_type: e.target.value }))}
+              placeholder="Filter by license type..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search all fields..."
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Data Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
