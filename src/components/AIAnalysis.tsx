@@ -242,7 +242,7 @@ const DataGathering: React.FC = () => {
         volume_2025: parseInt(row.volume_2025?.toString() || '0') || 0,
         status: 'Active' as const
       };
-      console.log(transformedRow);
+      console.log(transformedRow)
       validatedData.push(transformedRow);
     }
 
@@ -312,7 +312,7 @@ const DataGathering: React.FC = () => {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-700">{error}</p>
           <button 
             onClick={() => setError(null)}
@@ -338,7 +338,91 @@ const DataGathering: React.FC = () => {
               <div className="text-left space-y-1">
                 <p>• <strong>Required:</strong> department_name, division, license_permit_type</p>
                 <p>• <strong>Optional:</strong> description, access_mode, regulations, user_type, cost</p>
-                <p>• <strong>Financial:</strong> revenue_2023/2024/2025</p>
+      if (accessMode.includes('online') || accessMode.includes('digital')) {
+        channelCounts.Online += (item as any).volume_2025 || 0;
+      } else if (accessMode.includes('manual') || accessMode.includes('paper')) {
+        channelCounts.Manual += (item as any).volume_2025 || 0;
+      } else if (accessMode.includes('both')) {
+        channelCounts.Both += (item as any).volume_2025 || 0;
+      } else {
+        channelCounts.Unknown += (item as any).volume_2025 || 0;
+      }
+    });
+    
+    return Object.entries(channelCounts)
+      .filter(([_, value]) => value > 0)
+      .map(([name, value]) => ({
+        name,
+        value,
+        percentage: Math.round((value / Object.values(channelCounts).reduce((a, b) => a + b, 0)) * 100)
+      }));
+  };
+
+  const getApplicationsData = () => {
+    const departmentData: { [key: string]: number } = {};
+    
+    filteredData.forEach(item => {
+      const deptName = item.department_name.replace('Department of ', '');
+      departmentData[deptName] = (departmentData[deptName] || 0) + ((item as any).volume_2025 || 0);
+    });
+    
+    const total = Object.values(departmentData).reduce((a, b) => a + b, 0);
+    
+    return Object.entries(departmentData)
+      .filter(([_, value]) => value > 0)
+      .map(([name, value]) => ({
+        name,
+        value,
+        percentage: Math.round((value / total) * 100)
+      }));
+  };
+
+  const getRevenueData = () => {
+    const departmentData: { [key: string]: number } = {};
+    
+    filteredData.forEach(item => {
+      const deptName = item.department_name.replace('Department of ', '');
+      departmentData[deptName] = (departmentData[deptName] || 0) + ((item as any).revenue_2025 || 0);
+    });
+    
+    const total = Object.values(departmentData).reduce((a, b) => a + b, 0);
+    
+    return Object.entries(departmentData)
+      .filter(([_, value]) => value > 0)
+      .map(([name, value]) => ({
+        name,
+        value,
+        formattedValue: `$${value.toLocaleString()}`,
+        percentage: Math.round((value / total) * 100)
+      }));
+  };
+
+  const getProcessingTimeData = () => {
+    const departmentData: { [key: string]: { totalTime: number, totalVolume: number } } = {};
+    
+    filteredData.forEach(item => {
+      const deptName = item.department_name.replace('Department of ', '');
+      if (!departmentData[deptName]) {
+        departmentData[deptName] = { totalTime: 0, totalVolume: 0 };
+      }
+      
+      const processingTime = (item as any).processing_time_2025 || 0;
+      const volume = (item as any).volume_2025 || 0;
+      
+      departmentData[deptName].totalTime += processingTime * volume;
+      departmentData[deptName].totalVolume += volume;
+    });
+    
+    return Object.entries(departmentData)
+      .filter(([_, data]) => data.totalVolume > 0)
+      .map(([department, data]) => ({
+        department,
+        avgProcessingDays: data.totalVolume > 0 ? data.totalTime / data.totalVolume : 0,
+        totalApplications: data.totalVolume
+      }))
+      .sort((a, b) => b.totalApplications - a.totalApplications);
+  };
+
                 <p>• <strong>Performance:</strong> processing_time_2023/2024/2025, volume_2023/2024/2025</p>
               </div>
             </div>
